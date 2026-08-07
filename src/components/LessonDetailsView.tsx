@@ -52,12 +52,20 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
   const handleDurationChange = (newDuration: number) => {
     setEditDuration(newDuration);
     setEditEndTime(calculateEndTime(editStartTime, newDuration));
+    const basePrice = profile?.pricePerLesson ?? 0;
+    if (basePrice > 0) {
+      setEditPrice(newDuration >= 70 ? basePrice * 2 : basePrice);
+    }
   };
 
   const handleEndTimeChange = (newEnd: string) => {
     setEditEndTime(newEnd);
     const calculated = calculateDurationFromTimes(editStartTime, newEnd);
     setEditDuration(calculated);
+    const basePrice = profile?.pricePerLesson ?? 0;
+    if (basePrice > 0) {
+      setEditPrice(calculated >= 70 ? basePrice * 2 : basePrice);
+    }
   };
 
   const handleSaveNotes = () => {
@@ -163,7 +171,7 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
                 </span>
                 <p className="text-[#434654] text-[11px] font-medium">משך זמן</p>
                 <p className="font-bold text-[13px] text-[#141c2b]">
-                  {lesson.duration} דקות
+                  {lesson.duration} דקות {lesson.duration >= 70 ? '(שיעור כפול)' : ''}
                 </p>
               </div>
 
@@ -370,15 +378,17 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
 
                 <div>
                   <label className="block text-[12px] font-semibold text-[#434654] mb-1">
-                    משך (דקות)
+                    משך השיעור
                   </label>
-                  <input
-                    type="number"
+                  <select
                     value={editDuration}
                     onChange={(e) => handleDurationChange(Number(e.target.value))}
-                    className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] font-bold"
+                    className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] font-bold bg-white cursor-pointer"
                     required
-                  />
+                  >
+                    <option value={40}>40 דק'</option>
+                    <option value={80}>80 דק' (כפול)</option>
+                  </select>
                 </div>
 
                 <div>

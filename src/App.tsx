@@ -20,6 +20,7 @@ import {
 } from './data/initialData';
 
 import { Header } from './components/Header';
+import { calculateCompletedLessonUnits } from './utils/lessonHelpers';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DashboardView } from './components/DashboardView';
 import { LessonsListView } from './components/LessonsListView';
@@ -282,7 +283,7 @@ export default function App() {
     }
   };
 
-  const completedLessonsCount = lessons.filter((l) => l.status === 'completed').length;
+  const completedLessonsCount = calculateCompletedLessonUnits(lessons);
   const isRegistrationPaid = Boolean(profile.registrationFeePayment?.isPaid);
   const hasPassedTest = tests.some((t) => t.result === 'passed');
 

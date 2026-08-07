@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lesson, StudentProfile } from '../types';
-import { calculateEndTime, calculateDurationFromTimes, getNextSuggestedLessonTopic } from '../utils/lessonHelpers';
+import { calculateEndTime, calculateDurationFromTimes, getNextSuggestedLessonTopic, getNextLessonNumber } from '../utils/lessonHelpers';
 
 interface AddLessonViewProps {
   profile: StudentProfile;
@@ -21,14 +21,12 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
   const todayStr = now.toISOString().split('T')[0];
   const currentHHMM = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-  const suggestedTopic = getNextSuggestedLessonTopic(allLessons);
-
   const [date, setDate] = useState(todayStr);
   const [startTime, setStartTime] = useState(currentHHMM);
-  const [duration, setDuration] = useState(45);
-  const [endTime, setEndTime] = useState(() => calculateEndTime(currentHHMM, 45));
+  const [duration, setDuration] = useState(40);
+  const [endTime, setEndTime] = useState(() => calculateEndTime(currentHHMM, 40));
   const [price, setPrice] = useState(profile?.pricePerLesson ?? 0);
-  const [topic, setTopic] = useState(suggestedTopic);
+  const [topic, setTopic] = useState(() => getNextSuggestedLessonTopic(allLessons, 40));
   const [location, setLocation] = useState('תל אביב, מרכז');
   const [status, setStatus] = useState<'planned' | 'completed'>('planned');
   const [isPaid, setIsPaid] = useState(false);
@@ -46,12 +44,24 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
   const handleDurationChange = (newDuration: number) => {
     setDuration(newDuration);
     setEndTime(calculateEndTime(startTime, newDuration));
+    const basePrice = profile?.pricePerLesson ?? 0;
+    if (basePrice > 0) {
+      setPrice(newDuration >= 70 ? basePrice * 2 : basePrice);
+    }
+    const nextNum = getNextLessonNumber(allLessons);
+    if (!topic.trim() || topic === `שיעור ${nextNum}` || topic === `שיעור ${nextNum}-${nextNum + 1}`) {
+      setTopic(getNextSuggestedLessonTopic(allLessons, newDuration));
+    }
   };
 
   const handleEndTimeChange = (newEnd: string) => {
     setEndTime(newEnd);
     const calculated = calculateDurationFromTimes(startTime, newEnd);
     setDuration(calculated);
+    const basePrice = profile?.pricePerLesson ?? 0;
+    if (basePrice > 0) {
+      setPrice(calculated >= 70 ? basePrice * 2 : basePrice);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -103,15 +113,16 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
       };
 
       const fullTimeStr = `${startTime} - ${endTime}`;
+      const nextNum = getNextLessonNumber(allLessons);
 
       const newLessonData: Omit<Lesson, 'id'> = {
-        lessonNumber: totalCompletedCount + 1,
+        lessonNumber: nextNum,
         date,
         formattedDate,
         monthDayShort,
         time: fullTimeStr,
         duration,
-        topic,
+        topic: topic.trim() || getNextSuggestedLessonTopic(allLessons, duration),
         instructor: profile.instructorName,
         location,
         price: Number(price),
@@ -187,18 +198,16 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
 
             <div className="space-y-1.5">
               <label className="block text-[12px] font-semibold text-[#434654]">
-                משך (דקות)
+                משך השיעור
               </label>
-              <input
-                type="number"
-                min={10}
-                max={240}
-                step={5}
+              <select
                 value={duration}
                 onChange={(e) => handleDurationChange(Number(e.target.value))}
-                required
-                className="w-full h-11 px-3 bg-white border border-[#c3c5d7] rounded-xl text-[14px] text-[#141c2b] font-bold"
-              />
+                className="w-full h-11 px-3 bg-white border border-[#c3c5d7] rounded-xl text-[14px] text-[#141c2b] font-bold cursor-pointer"
+              >
+                <option value={40}>40 דק' (שיעור רגיל)</option>
+                <option value={80}>80 דק' (שיעור כפול)</option>
+              </select>
             </div>
 
             <div className="space-y-1.5">

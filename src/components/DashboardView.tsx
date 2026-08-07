@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lesson, DrivingTest, StudentProfile, NavigationTab, RegistrationFeePayment } from '../types';
-import { isLessonPassed } from '../utils/lessonHelpers';
+import { isLessonPassed, calculateCompletedLessonUnits } from '../utils/lessonHelpers';
 import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
 import { PaidSummaryModal } from './PaidSummaryModal';
 import { RegistrationFeeModal } from './RegistrationFeeModal';
@@ -38,7 +38,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Compute stats
   const completedLessons = (lessons || []).filter((l) => l.status === 'completed');
-  const completedCount = completedLessons.length;
+  const completedCount = calculateCompletedLessonUnits(lessons || []);
 
   const lessonsPaidSum = (lessons || [])
     .filter((l) => l.paymentStatus === 'paid' && l.status === 'completed')

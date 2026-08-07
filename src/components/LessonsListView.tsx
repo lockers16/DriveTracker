@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Lesson, StudentProfile } from '../types';
 import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
-import { isLessonPassed } from '../utils/lessonHelpers';
+import { isLessonPassed, calculateCompletedLessonUnits } from '../utils/lessonHelpers';
 import { ShekelIcon } from './ShekelIcon';
 
 interface LessonsListViewProps {
@@ -33,7 +33,7 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
 
-  const completedCount = (lessons || []).filter((l) => l.status === 'completed').length;
+  const completedCount = calculateCompletedLessonUnits(lessons || []);
   const requiredCount = profile?.requiredLessons || 28;
   const remainingCount = Math.max(0, requiredCount - completedCount);
   const progressPercent = Math.min(100, Math.round((completedCount / requiredCount) * 100));
@@ -375,8 +375,13 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
                         )}
                       </div>
 
-                      <p className="text-[13px] text-[#434654] mt-0.5">
-                        {lesson.time.split('-')[0]} • {lesson.duration} דק׳
+                      <p className="text-[13px] text-[#434654] mt-0.5 flex items-center gap-1.5">
+                        <span>{lesson.time.split('-')[0]} • {lesson.duration} דק׳</span>
+                        {lesson.duration >= 70 && (
+                          <span className="text-[11px] font-bold px-1.5 py-0.2 rounded bg-[#e8eeff] text-[#003fb1]">
+                            שיעור כפול
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>

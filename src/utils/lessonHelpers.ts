@@ -71,11 +71,51 @@ export function calculateDurationFromTimes(startTime: string, endTime: string): 
 }
 
 /**
- * Suggest next lesson topic name automatically based on completed lessons count + 1.
+ * Returns how many standard lesson units (40 min each) a lesson represents.
+ * 40 min = 1 unit, 80 min (or double lesson) = 2 units.
  */
-export function getNextSuggestedLessonTopic(lessons: Lesson[]): string {
-  const completedCount = lessons.filter((l) => l.status === 'completed').length;
-  return `שיעור ${completedCount + 1}`;
+export function getLessonUnits(lesson: { duration?: number }): number {
+  const d = lesson.duration || 40;
+  if (d >= 70) return 2;
+  return 1;
+}
+
+/**
+ * Calculates total completed lesson units from a list of lessons.
+ */
+export function calculateCompletedLessonUnits(lessons: Lesson[]): number {
+  return (lessons || [])
+    .filter((l) => l.status === 'completed')
+    .reduce((sum, l) => sum + getLessonUnits(l), 0);
+}
+
+/**
+ * Calculates total lesson units of all non-cancelled lessons.
+ */
+export function calculateTotalLessonUnits(lessons: Lesson[]): number {
+  return (lessons || [])
+    .filter((l) => l.status !== 'cancelled')
+    .reduce((sum, l) => sum + getLessonUnits(l), 0);
+}
+
+/**
+ * Calculates the next lesson starting number based on 1 + (total lesson time in minutes)/40:
+ * 1 + total units so far.
+ */
+export function getNextLessonNumber(lessons: Lesson[]): number {
+  const units = calculateTotalLessonUnits(lessons);
+  return units + 1;
+}
+
+/**
+ * Suggest next lesson topic name automatically based on next lesson number and duration.
+ */
+export function getNextSuggestedLessonTopic(lessons: Lesson[], duration: number = 40): string {
+  const nextNum = getNextLessonNumber(lessons);
+  if (duration >= 70) {
+    return `שיעור ${nextNum}-${nextNum + 1}`;
+  }
+  return `שיעור ${nextNum}`;
 }
 
 /**

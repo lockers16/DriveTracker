@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Lesson, DrivingTest, StudentProfile, TestType, TestResultStatus, PaymentStatus, RegistrationFeePayment } from '../types';
 import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
-import { calculateEndTime, calculateDurationFromTimes, getNextSuggestedLessonTopic, isTestDateTimePassed } from '../utils/lessonHelpers';
+import { calculateEndTime, calculateDurationFromTimes, getNextSuggestedLessonTopic, getNextLessonNumber, isTestDateTimePassed } from '../utils/lessonHelpers';
 import { CreateActionType } from './CreateTypeModal';
 
 interface AddUnifiedViewProps {
@@ -61,11 +61,11 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
   // ==========================================
   // 1. LESSON FORM STATE
   // ==========================================
-  const suggestedTopic = getNextSuggestedLessonTopic(allLessons);
+  const [lessonDuration, setLessonDuration] = useState(40);
+  const [lessonEndTime, setLessonEndTime] = useState(() => calculateEndTime(currentHHMM, 40));
+  const suggestedTopic = getNextSuggestedLessonTopic(allLessons, 40);
   const [lessonDate, setLessonDate] = useState(todayStr);
   const [lessonStartTime, setLessonStartTime] = useState(currentHHMM);
-  const [lessonDuration, setLessonDuration] = useState(45);
-  const [lessonEndTime, setLessonEndTime] = useState(() => calculateEndTime(currentHHMM, 45));
   const [lessonPrice, setLessonPrice] = useState(profile?.pricePerLesson ?? 0);
   const [lessonTopic, setLessonTopic] = useState(suggestedTopic);
   const [lessonLocation, setLessonLocation] = useState('');
@@ -81,12 +81,28 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
   const handleDurationChange = (newDuration: number) => {
     setLessonDuration(newDuration);
     setLessonEndTime(calculateEndTime(lessonStartTime, newDuration));
+    
+    // Auto-update price according to duration: 80 min = 2x price per lesson
+    const basePrice = profile?.pricePerLesson ?? 0;
+    if (basePrice > 0) {
+      setLessonPrice(newDuration >= 70 ? basePrice * 2 : basePrice);
+    }
+
+    // Auto-update topic if using default lesson topic name pattern
+    const nextNum = getNextLessonNumber(allLessons);
+    if (!lessonTopic.trim() || lessonTopic === `שיעור ${nextNum}` || lessonTopic === `שיעור ${nextNum}-${nextNum + 1}`) {
+      setLessonTopic(getNextSuggestedLessonTopic(allLessons, newDuration));
+    }
   };
 
   const handleEndTimeChange = (newEnd: string) => {
     setLessonEndTime(newEnd);
     const calculated = calculateDurationFromTimes(lessonStartTime, newEnd);
     setLessonDuration(calculated);
+    const basePrice = profile?.pricePerLesson ?? 0;
+    if (basePrice > 0) {
+      setLessonPrice(calculated >= 70 ? basePrice * 2 : basePrice);
+    }
   };
 
   const handleLessonSubmit = (e: React.FormEvent) => {
@@ -113,15 +129,16 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
     };
 
     const fullTimeStr = `${lessonStartTime} - ${lessonEndTime}`;
+    const nextNum = getNextLessonNumber(allLessons);
 
     const newLessonData: Omit<Lesson, 'id'> = {
-      lessonNumber: totalCompletedCount + 1,
+      lessonNumber: nextNum,
       date: lessonDate,
       formattedDate,
       monthDayShort,
       time: fullTimeStr,
       duration: lessonDuration,
-      topic: lessonTopic.trim() || 'נהיגה כללית',
+      topic: lessonTopic.trim() || getNextSuggestedLessonTopic(allLessons, lessonDuration),
       instructor: profile?.instructorName || 'מורה נהיגה',
       location: lessonLocation.trim(),
       price: Number(lessonPrice),
@@ -545,13 +562,10 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
                 <select
                   value={lessonDuration}
                   onChange={(e) => handleDurationChange(Number(e.target.value))}
-                  className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] text-center bg-white"
+                  className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] text-center bg-white cursor-pointer"
                 >
                   <option value={40}>40 דק'</option>
-                  <option value={45}>45 דק'</option>
-                  <option value={60}>60 דק'</option>
                   <option value={80}>80 דק' (כפול)</option>
-                  <option value={90}>90 דק' (כפול)</option>
                 </select>
               </div>
 

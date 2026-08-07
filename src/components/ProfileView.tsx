@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { StudentProfile, Lesson, DrivingSkill } from '../types';
 import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
+import { calculateCompletedLessonUnits } from '../utils/lessonHelpers';
 import { ResetConfirmModal } from './ResetConfirmModal';
 
 interface ProfileViewProps {
@@ -59,7 +60,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
   // Completed metrics
   const completedLessons = lessons.filter((l) => l.status === 'completed');
-  const completedCount = completedLessons.length;
+  const completedCount = calculateCompletedLessonUnits(lessons);
   const totalPaid = lessons
     .filter((l) => l.paymentStatus === 'paid')
     .reduce((sum, l) => sum + (l.price || 0), 0);
