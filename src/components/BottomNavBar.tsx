@@ -11,7 +11,7 @@ export const BottomNavBar: React.FC<BottomNavBarProps> = ({ activeTab, onTabChan
     { id: 'dashboard', label: 'דף הבית', icon: 'home' },
     { id: 'lessons', label: 'שיעורים', icon: 'calendar_today' },
     { id: 'tests', label: 'טסטים', icon: 'verified' },
-    { id: 'add', label: 'חדש', icon: 'add_circle' },
+    { id: 'add', label: 'הוספה', icon: 'add_circle' },
     { id: 'profile', label: 'פרופיל', icon: 'person' },
   ];
 

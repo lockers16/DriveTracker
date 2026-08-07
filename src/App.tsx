@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Lesson, DrivingTest, NavigationTab, StudentProfile, TestResultStatus, PaymentStatus } from './types';
+import {
+  Lesson,
+  DrivingTest,
+  NavigationTab,
+  StudentProfile,
+  TestResultStatus,
+  PaymentStatus,
+  RegistrationFeePayment,
+} from './types';
 import {
   getStoredLessons,
   saveStoredLessons,
@@ -7,9 +15,8 @@ import {
   saveStoredTests,
   getStoredProfile,
   saveStoredProfile,
-  INITIAL_LESSONS,
-  INITIAL_TESTS,
   DEFAULT_STUDENT_PROFILE,
+  clearAllStoredData,
 } from './data/initialData';
 
 import { Header } from './components/Header';
@@ -17,22 +24,23 @@ import { BottomNavBar } from './components/BottomNavBar';
 import { DashboardView } from './components/DashboardView';
 import { LessonsListView } from './components/LessonsListView';
 import { TestsListView } from './components/TestsListView';
-import { AddLessonView } from './components/AddLessonView';
-import { AddTestView } from './components/AddTestView';
+import { AddUnifiedView } from './components/AddUnifiedView';
 import { LessonDetailsView } from './components/LessonDetailsView';
 import { ProfileView } from './components/ProfileView';
 import { TestGoalModal } from './components/TestGoalModal';
-import { CreateTypeModal } from './components/CreateTypeModal';
+import { CreateTypeModal, CreateActionType } from './components/CreateTypeModal';
+import { OnboardingView } from './components/OnboardingView';
 
 export default function App() {
+  const [profile, setProfile] = useState<StudentProfile>(() => getStoredProfile());
+  const [lessons, setLessons] = useState<Lesson[]>(() => getStoredLessons());
+  const [tests, setTests] = useState<DrivingTest[]>(() => getStoredTests());
+
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
   const [isTestGoalModalOpen, setIsTestGoalModalOpen] = useState(false);
   const [isCreateTypeModalOpen, setIsCreateTypeModalOpen] = useState(false);
-
-  const [lessons, setLessons] = useState<Lesson[]>(() => getStoredLessons());
-  const [tests, setTests] = useState<DrivingTest[]>(() => getStoredTests());
-  const [profile, setProfile] = useState<StudentProfile>(() => getStoredProfile());
+  const [addMode, setAddMode] = useState<CreateActionType>('lesson');
 
   // Sync state to localStorage whenever it changes
   useEffect(() => {
@@ -47,14 +55,30 @@ export default function App() {
     saveStoredProfile(profile);
   }, [profile]);
 
+  // If user hasn't completed initial onboarding, show Onboarding form
+  if (!profile.isConfigured) {
+    return (
+      <OnboardingView
+        initialProfile={profile}
+        onSaveProfile={(configuredProfile) => {
+          setProfile(configuredProfile);
+          saveStoredProfile(configuredProfile);
+          setActiveTab('dashboard');
+        }}
+      />
+    );
+  }
+
   // Tab switching handler
   const handleTabChange = (tab: NavigationTab) => {
     setSelectedLesson(null);
-    if (tab === 'add') {
-      setIsCreateTypeModalOpen(true);
-    } else {
-      setActiveTab(tab);
-    }
+    setActiveTab(tab);
+  };
+
+  const handleOpenAddWithMode = (mode: CreateActionType) => {
+    setSelectedLesson(null);
+    setAddMode(mode);
+    setActiveTab('add');
   };
 
   // Add lesson handler
@@ -68,6 +92,7 @@ export default function App() {
     const updated = [newLesson, ...lessons];
     setLessons(updated);
     setSelectedLesson(newLesson);
+    setActiveTab('lessons');
   };
 
   // Add test handler
@@ -80,7 +105,33 @@ export default function App() {
 
     const updated = [newTest, ...tests];
     setTests(updated);
-    setActiveTab('tests');
+    if (newTest.type === 'חיצוני' && newTest.result === 'passed') {
+      setActiveTab('dashboard');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setActiveTab('tests');
+    }
+  };
+
+  // Save Registration Fee payment handler
+  const handleSaveRegistrationFee = (payment: RegistrationFeePayment) => {
+    const updatedProfile: StudentProfile = {
+      ...profile,
+      registrationFeePayment: payment,
+    };
+    setProfile(updatedProfile);
+    saveStoredProfile(updatedProfile);
+    setActiveTab('dashboard');
+  };
+
+  // Delete Registration Fee payment handler
+  const handleDeleteRegistrationFee = () => {
+    const updatedProfile: StudentProfile = {
+      ...profile,
+      registrationFeePayment: undefined,
+    };
+    setProfile(updatedProfile);
+    saveStoredProfile(updatedProfile);
   };
 
   // Update test status handler
@@ -89,16 +140,23 @@ export default function App() {
     result: TestResultStatus,
     paymentStatus?: PaymentStatus
   ) => {
-    const updated = tests.map((t) =>
-      t.id === testId
-        ? {
-            ...t,
-            result,
-            paymentStatus: paymentStatus !== undefined ? paymentStatus : t.paymentStatus,
-          }
-        : t
-    );
+    let targetType: string | undefined;
+    const updated = tests.map((t) => {
+      if (t.id === testId) {
+        targetType = t.type;
+        return {
+          ...t,
+          result,
+          paymentStatus: paymentStatus !== undefined ? paymentStatus : t.paymentStatus,
+        };
+      }
+      return t;
+    });
     setTests(updated);
+    if (targetType === 'חיצוני' && result === 'passed') {
+      setActiveTab('dashboard');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Delete test handler
@@ -111,6 +169,10 @@ export default function App() {
   const handleUpdateTest = (updatedTest: DrivingTest) => {
     const updated = tests.map((t) => (t.id === updatedTest.id ? updatedTest : t));
     setTests(updated);
+    if (updatedTest.type === 'חיצוני' && updatedTest.result === 'passed') {
+      setActiveTab('dashboard');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // Update lesson handler
@@ -122,7 +184,7 @@ export default function App() {
     }
   };
 
-  // Quick lesson status update (from "התקיים?" action buttons)
+  // Quick lesson status update
   const handleQuickUpdateLessonStatus = (
     lessonId: string,
     status: 'completed' | 'cancelled',
@@ -158,25 +220,35 @@ export default function App() {
 
   // Update required lessons test threshold
   const handleUpdateRequiredLessons = (newTarget: number) => {
+    const target = Math.max(28, newTarget);
     setProfile((prev) => ({
       ...prev,
-      requiredLessons: newTarget,
+      requiredLessons: target,
     }));
   };
 
   // Import full data from JSON backup
-  const handleImportFullData = (importedLessons: Lesson[], importedProfile: StudentProfile) => {
+  const handleImportFullData = (importedLessons: Lesson[], importedProfile?: StudentProfile) => {
     setLessons(importedLessons);
-    setProfile(importedProfile);
+    if (importedProfile) {
+      setProfile({
+        ...importedProfile,
+        isConfigured: true,
+      });
+    }
     setSelectedLesson(null);
     setActiveTab('dashboard');
   };
 
-  // Reset data helper
+  // Reset data helper -> returns user to initial onboarding flow
   const handleResetData = () => {
-    setLessons(INITIAL_LESSONS);
-    setTests(INITIAL_TESTS);
-    setProfile(DEFAULT_STUDENT_PROFILE);
+    clearAllStoredData();
+    setLessons([]);
+    setTests([]);
+    setProfile({
+      ...DEFAULT_STUDENT_PROFILE,
+      isConfigured: false,
+    });
     setSelectedLesson(null);
     setActiveTab('dashboard');
   };
@@ -192,9 +264,7 @@ export default function App() {
       case 'tests':
         return 'מבחנים מעשיים';
       case 'add':
-        return 'הוספת שיעור';
-      case 'add-test':
-        return 'הוספת טסט';
+        return 'הוספה';
       case 'profile':
         return 'פרופיל אישי';
       default:
@@ -203,6 +273,8 @@ export default function App() {
   };
 
   const completedLessonsCount = lessons.filter((l) => l.status === 'completed').length;
+  const isRegistrationPaid = Boolean(profile.registrationFeePayment?.isPaid);
+  const hasPassedTest = tests.some((t) => t.result === 'passed');
 
   return (
     <div className="min-h-screen bg-[#f9f9ff] text-[#141c2b] flex flex-col font-sans">
@@ -238,14 +310,18 @@ export default function App() {
             onNavigateTab={handleTabChange}
             onQuickAdd={() => setIsCreateTypeModalOpen(true)}
             onOpenTestGoalModal={() => setIsTestGoalModalOpen(true)}
+            onOpenAddMode={handleOpenAddWithMode}
+            onSaveRegistrationFee={handleSaveRegistrationFee}
+            onDeleteRegistrationFee={handleDeleteRegistrationFee}
             onQuickUpdateLessonStatus={handleQuickUpdateLessonStatus}
           />
         ) : activeTab === 'lessons' ? (
           <LessonsListView
             lessons={lessons}
             profile={profile}
+            hasPassedTest={hasPassedTest}
             onSelectLesson={(lesson) => setSelectedLesson(lesson)}
-            onAddNewLesson={() => setActiveTab('add')}
+            onAddNewLesson={() => handleOpenAddWithMode('lesson')}
             onOpenTestGoalModal={() => setIsTestGoalModalOpen(true)}
             onQuickUpdateLessonStatus={handleQuickUpdateLessonStatus}
             onDeleteMultipleLessons={handleDeleteMultipleLessons}
@@ -254,34 +330,32 @@ export default function App() {
           <TestsListView
             tests={tests}
             profile={profile}
-            onAddNewTest={() => setActiveTab('add-test')}
+            hasPassedTest={hasPassedTest}
+            onAddNewTest={() => handleOpenAddWithMode('test')}
             onUpdateTestStatus={handleUpdateTestStatus}
             onUpdateTest={handleUpdateTest}
             onDeleteTest={handleDeleteTest}
           />
         ) : activeTab === 'add' ? (
-          <AddLessonView
+          <AddUnifiedView
             profile={profile}
             allLessons={lessons}
-            onSaveLesson={handleSaveNewLesson}
-            onCancel={() => setActiveTab('lessons')}
-            totalCompletedCount={completedLessonsCount}
-          />
-        ) : activeTab === 'add-test' ? (
-          <AddTestView
-            profile={profile}
             existingTests={tests}
+            initialMode={addMode}
+            hasPassedTest={hasPassedTest}
+            onSaveLesson={handleSaveNewLesson}
             onSaveTest={handleSaveNewTest}
-            onCancel={() => setActiveTab('tests')}
+            onSaveRegistrationFee={handleSaveRegistrationFee}
+            onCancel={() => setActiveTab('dashboard')}
+            totalCompletedCount={completedLessonsCount}
           />
         ) : (
           <ProfileView
             profile={profile}
             lessons={lessons}
-            tests={tests}
             onUpdateProfile={(updated) => setProfile(updated)}
             onImportFullData={handleImportFullData}
-            onResetData={handleResetData}
+            onResetAllData={handleResetData}
           />
         )}
       </div>
@@ -291,27 +365,26 @@ export default function App() {
         isOpen={isTestGoalModalOpen}
         onClose={() => setIsTestGoalModalOpen(false)}
         completedLessons={completedLessonsCount}
-        requiredLessons={profile.requiredLessons}
+        requiredLessons={profile.requiredLessons || 28}
         onUpdateRequiredLessons={handleUpdateRequiredLessons}
       />
 
-      {/* Choice Modal: New Lesson or New Test */}
+      {/* Choice Modal: Only for floating (+) button on Dashboard */}
       <CreateTypeModal
         isOpen={isCreateTypeModalOpen}
         onClose={() => setIsCreateTypeModalOpen(false)}
+        isRegistrationPaid={isRegistrationPaid}
+        hasPassedTest={hasPassedTest}
         onSelectType={(type) => {
           setSelectedLesson(null);
-          if (type === 'lesson') {
-            setActiveTab('add');
-          } else {
-            setActiveTab('add-test');
-          }
+          setAddMode(type);
+          setActiveTab('add');
         }}
       />
 
       {/* Fixed Bottom Navigation Bar */}
       <BottomNavBar
-        activeTab={selectedLesson ? 'lessons' : activeTab === 'add-test' ? 'tests' : activeTab}
+        activeTab={selectedLesson ? 'lessons' : activeTab}
         onTabChange={handleTabChange}
       />
     </div>

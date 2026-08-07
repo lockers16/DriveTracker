@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { DrivingTest, TestType, TestResultStatus, PaymentStatus } from '../types';
+import { DrivingTest, TestType, TestResultStatus, PaymentStatus, StudentProfile } from '../types';
+import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
+import { isTestDateTimePassed } from '../utils/lessonHelpers';
 
 interface EditTestModalProps {
   test: DrivingTest | null;
   isOpen: boolean;
   onClose: () => void;
   onSave: (updatedTest: DrivingTest) => void;
-  hasOtherExternalTest: boolean;
+  profile?: StudentProfile;
 }
 
 export const EditTestModal: React.FC<EditTestModalProps> = ({
@@ -14,7 +16,7 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  hasOtherExternalTest,
+  profile = DEFAULT_STUDENT_PROFILE,
 }) => {
   if (!isOpen || !test) return null;
 
@@ -26,8 +28,6 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
 
   const [testFee, setTestFee] = useState<number>(test.testFee);
   const [carFee, setCarFee] = useState<number>(test.carFee);
-  const [includeRegFee, setIncludeRegFee] = useState<boolean>(test.registrationFee > 0);
-  const [regFee, setRegFee] = useState<number>(test.registrationFee || 200);
 
   const [result, setResult] = useState<TestResultStatus>(test.result);
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(test.paymentStatus);
@@ -41,8 +41,6 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
       setNotes(test.notes || '');
       setTestFee(test.testFee);
       setCarFee(test.carFee);
-      setIncludeRegFee(test.registrationFee > 0);
-      setRegFee(test.registrationFee || 200);
       setResult(test.result);
       setPaymentStatus(test.paymentStatus);
     }
@@ -50,27 +48,26 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
 
   const isInternal = type === 'פנימי';
 
-  // Calculate totals
-  const calcRegFee = (!isInternal && !hasOtherExternalTest && includeRegFee) ? Number(regFee || 0) : 0;
+  // Calculate totals (registration fee is recorded separately via the dedicated registration fee feature)
   const totalPrice = isInternal
     ? Number(testFee || 0)
-    : Number(testFee || 0) + Number(carFee || 0) + calcRegFee;
+    : Number(testFee || 0) + Number(carFee || 0);
 
-  // Check if test date is in the future
-  const todayStr = new Date().toISOString().slice(0, 10);
-  const isFutureTest = date > todayStr;
+  // Check if test date/time is in the future
+  const isPassedTime = isTestDateTimePassed(date, time);
 
   const handleTypeChange = (newType: TestType) => {
     setType(newType);
     if (newType === 'פנימי') {
-      setTestFee(250);
+      setTestFee(profile?.defaultInternalTestFee ?? 0);
       setCarFee(0);
-      setIncludeRegFee(false);
     } else {
-      setTestFee(165);
-      setCarFee(231);
-      setIncludeRegFee(!hasOtherExternalTest);
+      setTestFee(profile?.defaultTestFee ?? 0);
+      setCarFee(profile?.defaultCarFee ?? 0);
     }
+    // Reset result to default/pending based on date/time, keeping date, time, location, notes, and paymentStatus
+    const passed = isTestDateTimePassed(date, time);
+    setResult(passed ? 'pending_result' : 'planned');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -94,7 +91,7 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
     const formattedDate = `${day} ${monthName}, ${year}`;
     const monthDayShort = { month: monthShortName, day: String(day) };
 
-    const finalResult = isFutureTest ? 'planned' : (result === 'planned' ? 'pending_result' : result);
+    const finalResult = !isPassedTime ? 'planned' : (result === 'planned' ? 'pending_result' : result);
 
     onSave({
       ...test,
@@ -103,11 +100,11 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
       formattedDate,
       monthDayShort,
       time,
-      location,
-      notes,
+      location: location.trim(),
+      notes: notes.trim() || undefined,
       testFee: Number(testFee),
       carFee: isInternal ? 0 : Number(carFee),
-      registrationFee: calcRegFee,
+      registrationFee: 0,
       totalPrice,
       result: finalResult,
       paymentStatus,
@@ -117,8 +114,8 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-5 shadow-2xl border border-[#c3c5d7] my-8">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-lg w-full p-5 sm:p-6 space-y-4 sm:space-y-5 shadow-2xl border border-[#c3c5d7] my-auto max-h-[90vh] max-h-[90dvh] overflow-y-auto">
         <div className="flex justify-between items-center border-b border-[#c3c5d7]/40 pb-3">
           <h3 className="text-[18px] font-bold text-[#141c2b] flex items-center gap-2">
             <span className="material-symbols-outlined text-[22px] text-[#1a56db]">edit_square</span>
@@ -142,7 +139,7 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
               <select
                 value={type}
                 onChange={(e) => handleTypeChange(e.target.value as TestType)}
-                className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[14px] bg-white"
+                className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[14px] bg-white cursor-pointer"
               >
                 <option value="חיצוני">טסט חיצוני (משרד הרישוי)</option>
                 <option value="פנימי">טסט פנימי (בית ספר לנהיגה)</option>
@@ -211,7 +208,7 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="block text-[11px] font-semibold text-[#434654] mb-1">
-                    אגרת טסט (₪)
+                    מחיר אגרת טסט (₪)
                   </label>
                   <input
                     type="number"
@@ -234,28 +231,6 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
               </div>
             )}
 
-            {!isInternal && !hasOtherExternalTest && (
-              <div className="bg-white p-2.5 rounded-lg border border-[#c3c5d7]/40 space-y-1.5">
-                <label className="flex items-center gap-2 font-semibold text-[12px] text-[#141c2b] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={includeRegFee}
-                    onChange={(e) => setIncludeRegFee(e.target.checked)}
-                    className="w-4 h-4 text-[#1a56db] rounded"
-                  />
-                  כולל דמי רישום (200 ₪)
-                </label>
-                {includeRegFee && (
-                  <input
-                    type="number"
-                    value={regFee}
-                    onChange={(e) => setRegFee(Number(e.target.value))}
-                    className="w-full p-1.5 bg-[#f9f9ff] border border-[#c3c5d7] rounded text-[13px] font-bold"
-                  />
-                )}
-              </div>
-            )}
-
             <div className="flex justify-between items-center pt-1 font-bold text-[14px]">
               <span>סה"כ מחיר:</span>
               <span className="text-[#003fb1] font-black text-[16px]">₪{totalPrice}</span>
@@ -268,19 +243,19 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
               <label className="block text-[12px] font-semibold text-[#141c2b] mb-1">
                 תוצאת הטסט
               </label>
-              {isFutureTest ? (
-                <div className="p-2.5 bg-gray-100 border border-gray-300 rounded-xl text-[13px] text-gray-600 font-medium">
-                  טסט עתידי (מתוכנן)
+              {!isPassedTime ? (
+                <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-[12px] text-amber-900 font-medium text-right">
+                  טסט עתידי – לא ניתן לעדכן תוצאה עד למועד הטסט
                 </div>
               ) : (
                 <select
                   value={result === 'planned' ? 'pending_result' : result}
                   onChange={(e) => setResult(e.target.value as TestResultStatus)}
-                  className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] bg-white"
+                  className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] bg-white text-right cursor-pointer"
                 >
-                  <option value="pending_result">לא ידוע</option>
-                  <option value="passed">עברתי (בהצלחה)</option>
-                  <option value="failed">נכשלתי</option>
+                  <option value="pending_result">לא ידוע / ממתין לתוצאה</option>
+                  <option value="passed">עברתי (בהצלחה! 🎉)</option>
+                  <option value="failed">נכשלתי (לא עברתי)</option>
                 </select>
               )}
             </div>
@@ -292,7 +267,7 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
               <select
                 value={paymentStatus}
                 onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}
-                className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] bg-white"
+                className="w-full p-2.5 border border-[#c3c5d7] rounded-xl text-[13px] bg-white cursor-pointer"
               >
                 <option value="pending">ממתין לתשלום</option>
                 <option value="paid">שולם במלואו</option>
@@ -317,14 +292,14 @@ export const EditTestModal: React.FC<EditTestModalProps> = ({
           <div className="flex gap-2 pt-2">
             <button
               type="submit"
-              className="flex-1 bg-[#1a56db] text-white py-3 rounded-xl font-bold text-[15px] hover:bg-[#003fb1] transition-colors"
+              className="flex-1 bg-[#1a56db] text-white py-3 rounded-xl font-bold text-[15px] hover:bg-[#003fb1] transition-colors cursor-pointer active:scale-98"
             >
               שמור שינויים
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 border border-[#c3c5d7] py-3 rounded-xl text-[#434654] font-medium hover:bg-gray-50"
+              className="flex-1 border border-[#c3c5d7] py-3 rounded-xl text-[#434654] font-medium hover:bg-gray-50 cursor-pointer active:scale-98"
             >
               ביטול
             </button>

@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { DrivingTest, StudentProfile, TestResultStatus, PaymentStatus } from '../types';
+import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
+import { isTestDateTimePassed } from '../utils/lessonHelpers';
 import { EditTestModal } from './EditTestModal';
 
 interface TestsListViewProps {
   tests: DrivingTest[];
-  profile: StudentProfile;
+  profile?: StudentProfile;
+  hasPassedTest?: boolean;
   onAddNewTest: () => void;
   onUpdateTestStatus: (testId: string, result: TestResultStatus, paymentStatus?: PaymentStatus) => void;
   onUpdateTest: (test: DrivingTest) => void;
@@ -12,8 +15,9 @@ interface TestsListViewProps {
 }
 
 export const TestsListView: React.FC<TestsListViewProps> = ({
-  tests,
-  profile,
+  tests = [],
+  profile = DEFAULT_STUDENT_PROFILE,
+  hasPassedTest = false,
   onAddNewTest,
   onUpdateTestStatus,
   onUpdateTest,
@@ -26,7 +30,7 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
   const todayStr = new Date().toISOString().slice(0, 10);
 
   // Compute stats ONLY for EXTERNAL tests ('חיצוני')
-  const externalTests = tests.filter((t) => t.type === 'חיצוני');
+  const externalTests = (tests || []).filter((t) => t.type === 'חיצוני');
   const externalTestsAsc = [...externalTests].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
 
   const passedCount = externalTests.filter((t) => t.result === 'passed').length;
@@ -51,28 +55,39 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
           <p className="text-[14px] text-[#434654]">מעקב תוצאות ועלויות טסט פנימי וחיצוני</p>
         </div>
 
-        <button
-          onClick={onAddNewTest}
-          className="bg-[#1a56db] hover:bg-[#003fb1] text-white font-bold text-[14px] px-3.5 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
-        >
-          <span className="material-symbols-outlined text-[20px]">add</span>
-          טסט חדש
-        </button>
+        {hasPassedTest ? (
+          <button
+            disabled={true}
+            className="bg-gray-200 border border-gray-300/60 text-gray-400 font-bold text-[14px] px-3.5 py-2 rounded-xl shadow-none flex items-center gap-1.5 cursor-not-allowed shrink-0 opacity-70"
+            title="לא ניתן להוסיף טסטים לאחר מעבר טסט"
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            טסט חדש
+          </button>
+        ) : (
+          <button
+            onClick={onAddNewTest}
+            className="bg-[#1a56db] hover:bg-[#003fb1] text-white font-bold text-[14px] px-3.5 py-2 rounded-xl shadow-xs transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
+          >
+            <span className="material-symbols-outlined text-[20px]">add</span>
+            טסט חדש
+          </button>
+        )}
       </div>
 
       {/* Overview Stats Badges (EXTERNAL TESTS ONLY) */}
-      <div className="grid grid-cols-3 gap-2.5">
-        <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center">
-          <span className="text-[11px] font-semibold text-emerald-800 block">עברתי בהצלחה (חיצוני)</span>
-          <span className="text-[20px] font-black text-emerald-700">{passedCount}</span>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-2xl flex sm:flex-col items-center justify-between sm:justify-center text-center">
+          <span className="text-[12px] font-bold text-emerald-900">עברתי בהצלחה (חיצוני)</span>
+          <span className="text-[22px] font-black text-emerald-700 leading-tight">{passedCount}</span>
         </div>
-        <div className="bg-red-50 border border-red-200 p-3 rounded-xl text-center">
-          <span className="text-[11px] font-semibold text-red-800 block">נכשלתי (חיצוני)</span>
-          <span className="text-[20px] font-black text-red-700">{failedCount}</span>
+        <div className="bg-red-50 border border-red-200 p-3 rounded-2xl flex sm:flex-col items-center justify-between sm:justify-center text-center">
+          <span className="text-[12px] font-bold text-red-900">נכשלתי (חיצוני)</span>
+          <span className="text-[22px] font-black text-red-700 leading-tight">{failedCount}</span>
         </div>
-        <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl text-center">
-          <span className="text-[11px] font-semibold text-amber-800 block">ממתין לתוצאה (חיצוני)</span>
-          <span className="text-[20px] font-black text-amber-700">{pendingCount}</span>
+        <div className="bg-amber-50 border border-amber-200 p-3 rounded-2xl flex sm:flex-col items-center justify-between sm:justify-center text-center">
+          <span className="text-[12px] font-bold text-amber-900">ממתין לתוצאה (חיצוני)</span>
+          <span className="text-[22px] font-black text-amber-700 leading-tight">{pendingCount}</span>
         </div>
       </div>
 
@@ -118,7 +133,11 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
               <span className="material-symbols-outlined text-[28px]">verified</span>
             </div>
             <h3 className="font-bold text-[16px] text-[#141c2b]">אין טסטים ברשימה זו</h3>
-            <p className="text-[13px] text-[#434654]">לחץ על "טסט חדש" כדי להוסיף טסט פנימי או חיצוני.</p>
+            <p className="text-[13px] text-[#434654]">
+              {hasPassedTest
+                ? 'לא ניתן להוסיף טסטים נוספים לאחר מעבר טסט.'
+                : 'לחץ על "טסט חדש" כדי להוסיף טסט פנימי או חיצוני.'}
+            </p>
           </div>
         ) : (
           filteredTests.map((test) => {
@@ -130,7 +149,8 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
 
             const isPassed = test.result === 'passed';
             const isFailed = test.result === 'failed';
-            const isFuture = test.date > todayStr;
+            const isPassedTime = isTestDateTimePassed(test.date, test.time);
+            const isFuture = !isPassedTime;
             const isPendingResult = !isFuture && (test.result === 'pending_result' || test.result === 'planned');
 
             const isResultLocked = isPassed || isFailed;
@@ -149,8 +169,8 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                 }`}
               >
                 {/* Header Row: Title & Result Status Badge */}
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={`w-11 h-11 rounded-xl flex items-center justify-center font-black text-[16px] shrink-0 ${
                         isPassed
@@ -177,9 +197,9 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                   </div>
 
                   {/* Actions & Result Pill Badge */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap sm:flex-nowrap pt-2 sm:pt-0 border-t sm:border-0 border-[#c3c5d7]/30">
                     <span
-                      className={`px-3 py-1 rounded-full text-[12px] font-bold border flex items-center gap-1 ${
+                      className={`px-3 py-1 rounded-full text-[12px] font-bold border inline-flex items-center justify-center gap-1 shrink-0 whitespace-nowrap ${
                         isPassed
                           ? 'bg-emerald-100 text-emerald-900 border-emerald-400'
                           : isFailed
@@ -207,23 +227,25 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                         : 'מתוכנן'}
                     </span>
 
-                    {/* Edit button */}
-                    <button
-                      onClick={() => setEditingTest(test)}
-                      className="p-1.5 text-[#1a56db] hover:bg-[#e8eeff] rounded-lg transition-colors"
-                      title="ערוך טסט"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">edit</span>
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {/* Edit button */}
+                      <button
+                        onClick={() => setEditingTest(test)}
+                        className="p-1.5 text-[#1a56db] hover:bg-[#e8eeff] rounded-lg transition-colors"
+                        title="ערוך טסט"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">edit</span>
+                      </button>
 
-                    {/* Delete button */}
-                    <button
-                      onClick={() => setTestToDelete(test.id)}
-                      className="p-1.5 text-gray-400 hover:text-[#ba1a1a] rounded-lg hover:bg-red-50 transition-colors"
-                      title="מחק טסט"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">delete</span>
-                    </button>
+                      {/* Delete button */}
+                      <button
+                        onClick={() => setTestToDelete(test.id)}
+                        className="p-1.5 text-gray-400 hover:text-[#ba1a1a] rounded-lg hover:bg-red-50 transition-colors"
+                        title="מחק טסט"
+                      >
+                        <span className="material-symbols-outlined text-[20px]">delete</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -232,7 +254,7 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                   {test.type === 'פנימי' ? (
                     <div className="flex justify-between items-center font-bold text-[14px]">
                       <span className="text-[#141c2b]">מחיר טסט פנימי:</span>
-                      <span className="text-[#003fb1] font-black text-[16px]">₪{test.totalPrice}</span>
+                      <span className="text-[#003fb1] font-black text-[16px]">₪{test.totalPrice || test.testFee}</span>
                     </div>
                   ) : (
                     <>
@@ -244,15 +266,9 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                         <span>העמדת רכב:</span>
                         <span className="font-bold text-[#141c2b]">₪{test.carFee}</span>
                       </div>
-                      {test.registrationFee > 0 && (
-                        <div className="flex justify-between items-center text-[#434654]">
-                          <span>דמי רישום:</span>
-                          <span className="font-bold text-[#141c2b]">₪{test.registrationFee}</span>
-                        </div>
-                      )}
                       <div className="flex justify-between items-center pt-2 border-t border-[#c3c5d7]/40 font-bold text-[14px]">
                         <span className="text-[#141c2b]">סה"כ עלות טסט:</span>
-                        <span className="text-[#003fb1] font-black text-[16px]">₪{test.totalPrice}</span>
+                        <span className="text-[#003fb1] font-black text-[16px]">₪{(test.testFee || 0) + (test.carFee || 0)}</span>
                       </div>
                     </>
                   )}
@@ -272,11 +288,11 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                 )}
 
                 {/* Action Controls Footer */}
-                <div className="pt-1 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-t border-black/10">
+                <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-t border-black/10">
                   {isFuture ? (
                     <div className="text-[12px] font-semibold text-[#434654] flex items-center gap-1.5 py-1">
                       <span className="material-symbols-outlined text-[18px] text-[#1a56db]">event</span>
-                      טסט עתידי - לא ניתן לסמן תוצאה עד למועד הטסט
+                      <span>טסט עתידי - לא ניתן לסמן תוצאה עד למועד הטסט</span>
                     </div>
                   ) : isResultLocked ? (
                     <div className="flex items-center justify-between w-full sm:w-auto gap-2">
@@ -286,7 +302,7 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                     </div>
                   ) : (
                     /* Quick Result Toggle Buttons for test that already occurred */
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="text-[12px] font-bold text-[#141c2b] ml-1">סימון תוצאה:</span>
                       <button
                         onClick={() => onUpdateTestStatus(test.id, 'passed')}
@@ -316,22 +332,24 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
                   )}
 
                   {/* Payment Status */}
-                  {test.paymentStatus === 'paid' ? (
-                    <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-3 py-1.5 rounded-xl font-bold text-[12px]">
-                      <span className="material-symbols-outlined text-[16px]">check_circle</span>
-                      שולם במלואו
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() =>
-                        onUpdateTestStatus(test.id, test.result, 'paid')
-                      }
-                      className="px-3 py-1.5 rounded-xl text-[12px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-all flex items-center justify-center gap-1.5 shadow-xs"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">payments</span>
-                      סמן כשולם
-                    </button>
-                  )}
+                  <div className="flex items-center justify-end sm:justify-auto">
+                    {test.paymentStatus === 'paid' ? (
+                      <div className="flex items-center gap-1.5 text-emerald-700 bg-emerald-100/80 border border-emerald-300 px-3 py-1.5 rounded-xl font-bold text-[12px]">
+                        <span className="material-symbols-outlined text-[16px]">check_circle</span>
+                        שולם במלואו
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() =>
+                          onUpdateTestStatus(test.id, test.result, 'paid')
+                        }
+                        className="w-full sm:w-auto px-4 py-1.5 rounded-xl text-[12px] font-bold bg-amber-500 hover:bg-amber-600 text-white transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">payments</span>
+                        סמן כשולם
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );
@@ -380,7 +398,7 @@ export const TestsListView: React.FC<TestsListViewProps> = ({
           onUpdateTest(updated);
           setEditingTest(null);
         }}
-        hasOtherExternalTest={tests.some((t) => t.type === 'חיצוני' && t.id !== editingTest?.id)}
+        profile={profile}
       />
     </main>
   );

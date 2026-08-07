@@ -5,7 +5,7 @@ interface HeaderProps {
   title?: string;
   showBack?: boolean;
   onBack?: () => void;
-  profile: StudentProfile;
+  profile?: StudentProfile;
   onOpenProfile?: () => void;
 }
 
@@ -33,11 +33,15 @@ export const Header: React.FC<HeaderProps> = ({
             className="w-10 h-10 rounded-full bg-[#dbe1ff] flex items-center justify-center overflow-hidden border border-[#c3c5d7] hover:ring-2 hover:ring-[#1a56db] transition-all cursor-pointer"
             title="פרופיל הגדרות"
           >
-            <img
-              src={profile.avatarUrl}
-              alt={profile.name}
-              className="w-full h-full object-cover"
-            />
+            {profile?.avatarUrl ? (
+              <img
+                src={profile.avatarUrl}
+                alt={profile?.name || 'פרופיל תלמיד'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="material-symbols-outlined text-[22px] text-[#003fb1]">person</span>
+            )}
           </button>
         )}
 

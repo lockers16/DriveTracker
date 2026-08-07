@@ -32,8 +32,8 @@ export const TestGoalModal: React.FC<TestGoalModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto space-y-5 border border-[#c3c5d7]">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl p-5 sm:p-6 relative max-h-[90vh] max-h-[90dvh] overflow-y-auto space-y-4 sm:space-y-5 border border-[#c3c5d7] my-auto">
         {/* Header */}
         <div className="flex justify-between items-center border-b border-[#c3c5d7]/40 pb-3">
           <div className="flex items-center gap-2 text-[#003fb1]">

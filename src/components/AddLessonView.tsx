@@ -27,7 +27,7 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
   const [startTime, setStartTime] = useState(currentHHMM);
   const [duration, setDuration] = useState(45);
   const [endTime, setEndTime] = useState(() => calculateEndTime(currentHHMM, 45));
-  const [price, setPrice] = useState(profile.pricePerLesson || 150);
+  const [price, setPrice] = useState(profile?.pricePerLesson ?? 0);
   const [topic, setTopic] = useState(suggestedTopic);
   const [location, setLocation] = useState('תל אביב, מרכז');
   const [status, setStatus] = useState<'planned' | 'completed'>('planned');

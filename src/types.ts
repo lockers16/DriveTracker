@@ -50,15 +50,30 @@ export interface DrivingSkill {
   isChecked: boolean;
 }
 
+export interface RegistrationFeePayment {
+  isPaid: boolean;
+  date?: string;
+  formattedDate?: string;
+  amount: number;
+  notes?: string;
+}
+
 export interface StudentProfile {
+  isConfigured?: boolean;
   name: string;
   avatarUrl: string;
   instructorName: string;
   instructorPhone: string;
+  instructorMessagingType?: 'whatsapp' | 'sms';
   carModel: string;
   gearType: 'ידני' | 'אוטומט';
   requiredLessons: number;
   pricePerLesson: number;
+  defaultRegistrationFee: number;
+  defaultInternalTestFee: number;
+  defaultTestFee: number;
+  defaultCarFee: number;
+  registrationFeePayment?: RegistrationFeePayment;
   targetTestDate?: string;
   showSkillsChecklist?: boolean;
   skillsList?: DrivingSkill[];

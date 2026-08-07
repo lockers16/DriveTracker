@@ -77,3 +77,32 @@ export function getNextSuggestedLessonTopic(lessons: Lesson[]): string {
   const completedCount = lessons.filter((l) => l.status === 'completed').length;
   return `שיעור ${completedCount + 1}`;
 }
+
+/**
+ * Checks if a driving test's date and time have passed.
+ */
+export function isTestDateTimePassed(testDate: string, testTime?: string): boolean {
+  if (!testDate) return false;
+  const now = new Date();
+  const testD = new Date(testDate);
+  if (isNaN(testD.getTime())) return false;
+
+  const todayMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const testMidnight = new Date(testD.getFullYear(), testD.getMonth(), testD.getDate());
+
+  if (testMidnight < todayMidnight) {
+    return true;
+  }
+  if (testMidnight > todayMidnight) {
+    return false;
+  }
+
+  // Same day: compare time if available
+  if (!testTime) return true;
+  const startPart = testTime.split('-')[0].trim();
+  const [hours, minutes] = startPart.split(':').map(Number);
+  if (isNaN(hours) || isNaN(minutes)) return true;
+
+  const testStartTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+  return now >= testStartTime;
+}

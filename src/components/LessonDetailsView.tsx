@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Lesson, StudentProfile } from '../types';
+import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
 import { calculateEndTime, calculateDurationFromTimes } from '../utils/lessonHelpers';
 
 interface LessonDetailsViewProps {
   lesson: Lesson;
-  profile: StudentProfile;
+  profile?: StudentProfile;
   completedCount: number;
   onBack: () => void;
   onUpdateLesson: (updated: Lesson) => void;
@@ -13,7 +14,7 @@ interface LessonDetailsViewProps {
 
 export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
   lesson,
-  profile,
+  profile = DEFAULT_STUDENT_PROFILE,
   completedCount,
   onBack,
   onUpdateLesson,
@@ -25,21 +26,21 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
   const [showEditModal, setShowEditModal] = useState(false);
 
   // Parse initial time
-  const timeParts = lesson.time.split('-');
+  const timeParts = (lesson.time || '').split('-');
   const initialStart = timeParts[0] ? timeParts[0].trim() : '16:30';
   const initialEnd = timeParts[1] ? timeParts[1].trim() : calculateEndTime(initialStart, lesson.duration || 45);
 
   // Edit form states
-  const [editTopic, setEditTopic] = useState(lesson.topic);
+  const [editTopic, setEditTopic] = useState(lesson.topic || '');
   const [editStartTime, setEditStartTime] = useState(initialStart);
-  const [editDuration, setEditDuration] = useState(lesson.duration);
+  const [editDuration, setEditDuration] = useState(lesson.duration || 45);
   const [editEndTime, setEditEndTime] = useState(initialEnd);
-  const [editLocation, setEditLocation] = useState(lesson.location);
-  const [editPrice, setEditPrice] = useState(lesson.price);
-  const [editStatus, setEditStatus] = useState(lesson.status);
-  const [editPayment, setEditPayment] = useState(lesson.paymentStatus);
+  const [editLocation, setEditLocation] = useState(lesson.location || '');
+  const [editPrice, setEditPrice] = useState(lesson.price || 150);
+  const [editStatus, setEditStatus] = useState(lesson.status || 'planned');
+  const [editPayment, setEditPayment] = useState(lesson.paymentStatus || 'pending');
 
-  const requiredCount = profile.requiredLessons;
+  const requiredCount = profile?.requiredLessons || 28;
   const progressPercent = Math.min(100, Math.round((completedCount / requiredCount) * 100));
 
   // Time Sync Handlers

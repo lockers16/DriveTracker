@@ -1,50 +1,67 @@
 import React, { useState } from 'react';
-import { Lesson, DrivingTest, StudentProfile, NavigationTab } from '../types';
+import { Lesson, DrivingTest, StudentProfile, NavigationTab, RegistrationFeePayment } from '../types';
 import { isLessonPassed } from '../utils/lessonHelpers';
+import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
+import { PaidSummaryModal } from './PaidSummaryModal';
+import { RegistrationFeeModal } from './RegistrationFeeModal';
 
 interface DashboardViewProps {
   lessons: Lesson[];
-  tests: DrivingTest[];
-  profile: StudentProfile;
+  tests?: DrivingTest[];
+  profile?: StudentProfile;
   onSelectLesson: (lesson: Lesson) => void;
   onNavigateTab: (tab: NavigationTab) => void;
   onQuickAdd: () => void;
   onOpenTestGoalModal: () => void;
+  onOpenAddMode?: (mode: 'lesson' | 'internal-test' | 'external-test' | 'registration-fee') => void;
+  onSaveRegistrationFee: (payment: RegistrationFeePayment) => void;
+  onDeleteRegistrationFee?: () => void;
   onQuickUpdateLessonStatus?: (lessonId: string, status: 'completed' | 'cancelled', paymentStatus: 'paid' | 'pending') => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
-  lessons,
+  lessons = [],
   tests = [],
-  profile,
+  profile = DEFAULT_STUDENT_PROFILE,
   onSelectLesson,
   onNavigateTab,
   onQuickAdd,
   onOpenTestGoalModal,
+  onOpenAddMode,
+  onSaveRegistrationFee,
+  onDeleteRegistrationFee,
   onQuickUpdateLessonStatus,
 }) => {
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [showPaidSummaryModal, setShowPaidSummaryModal] = useState(false);
+  const [showRegistrationFeeModal, setShowRegistrationFeeModal] = useState(false);
 
   // Compute stats
-  const completedLessons = lessons.filter((l) => l.status === 'completed');
+  const completedLessons = (lessons || []).filter((l) => l.status === 'completed');
   const completedCount = completedLessons.length;
 
-  const lessonsPaidSum = lessons
+  const lessonsPaidSum = (lessons || [])
     .filter((l) => l.paymentStatus === 'paid' && l.status === 'completed')
-    .reduce((sum, l) => sum + l.price, 0);
+    .reduce((sum, l) => sum + (l.price || 0), 0);
 
-  const testsPaidSum = tests
+  const testsPaidSum = (tests || [])
     .filter((t) => t.paymentStatus === 'paid')
-    .reduce((sum, t) => sum + t.totalPrice, 0);
+    .reduce((sum, t) => sum + (t.totalPrice || 0), 0);
 
-  const totalPaid = lessonsPaidSum + testsPaidSum;
+  const isRegPaid = profile?.registrationFeePayment?.isPaid ?? false;
+  const regFeePaidSum = isRegPaid
+    ? (profile?.registrationFeePayment?.amount ?? profile?.defaultRegistrationFee ?? 0)
+    : 0;
 
-  const externalTestsCount = tests.filter((t) => t.type === 'חיצוני').length;
-  const hasTests = tests.length > 0;
+  const totalPaid = lessonsPaidSum + testsPaidSum + regFeePaidSum;
 
-  const hasPassedExternalTest = tests.some((t) => t.type === 'חיצוני' && t.result === 'passed');
+  const externalTestsCount = (tests || []).filter((t) => t.type === 'חיצוני').length;
+  const hasTests = (tests || []).length > 0;
+  const hasLessons = (lessons || []).length > 0;
 
-  const requiredCount = profile.requiredLessons;
+  const hasPassedExternalTest = (tests || []).some((t) => t.type === 'חיצוני' && t.result === 'passed');
+
+  const requiredCount = profile?.requiredLessons || 28;
   const progressPercent = Math.min(100, Math.round((completedCount / requiredCount) * 100));
 
   // Find next upcoming item (closest future lesson or test)
@@ -96,6 +113,18 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ...tests.map((t) => ({ itemType: 'test' as const, data: t, dateKey: `${t.date} ${parseTimeStart(t.time)}` })),
   ].sort((a, b) => b.dateKey.localeCompare(a.dateKey)).slice(0, 4);
 
+  const handleRegistrationCardClick = () => {
+    if (isRegPaid) {
+      setShowRegistrationFeeModal(true);
+    } else {
+      if (onOpenAddMode) {
+        onOpenAddMode('registration-fee');
+      } else {
+        setShowRegistrationFeeModal(true);
+      }
+    }
+  };
+
   return (
     <main className="px-4 pt-4 pb-32 max-w-2xl mx-auto space-y-6">
       {/* Congratulations Banner if user passed a practical test */}
@@ -124,39 +153,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
       {/* Quick Stats Bento Grid */}
       <section className={`grid gap-3.5 ${hasTests ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
-        {/* 1. Total Lessons */}
-        <div className="bg-white p-4 rounded-xl shadow-xs border border-[#c3c5d7]/50 flex flex-col justify-between hover:border-[#1a56db]/50 transition-all">
+        {/* 1. Total Lessons Card (Clickable -> Navigates to Lessons list) */}
+        <div
+          onClick={() => onNavigateTab('lessons')}
+          className="bg-white p-4 rounded-2xl shadow-xs border border-[#c3c5d7]/60 flex flex-col justify-between cursor-pointer hover:border-[#1a56db] hover:shadow-md transition-all active:scale-[0.98] group"
+          title="לחץ למעבר לרשימת השיעורים המלאה"
+        >
           <div className="flex justify-between items-start">
-            <span className="text-[#003fb1] material-symbols-outlined bg-[#dbe1ff] p-2 rounded-lg text-[22px]">
+            <span className="text-[#003fb1] material-symbols-outlined bg-[#dbe1ff] p-2 rounded-xl text-[22px] group-hover:scale-110 transition-transform">
               speed
             </span>
           </div>
           <div className="mt-2">
-            <p className="text-[12px] font-medium text-[#434654]">סה"כ שיעורים</p>
-            <p className="text-[26px] font-bold text-[#141c2b] leading-tight">{completedCount}</p>
+            <p className="text-[12px] font-semibold text-[#434654]">סה"כ שיעורים</p>
+            <p className="text-[26px] font-black text-[#141c2b] leading-tight">{completedCount}</p>
           </div>
         </div>
 
-        {/* 2. Amount Paid (Lessons + Tests) */}
-        <div className="bg-white p-4 rounded-xl shadow-xs border border-[#c3c5d7]/50 flex flex-col justify-between hover:border-[#1a56db]/50 transition-all">
+        {/* 2. Amount Paid Card (Clickable -> Opens Breakdown Modal) */}
+        <div
+          onClick={() => setShowPaidSummaryModal(true)}
+          className="bg-white p-4 rounded-2xl shadow-xs border border-[#c3c5d7]/60 flex flex-col justify-between cursor-pointer hover:border-amber-500 hover:shadow-md transition-all active:scale-[0.98] group"
+          title="לחץ לצפייה בפירוט התשלומים (שיעורים, טסטים, דמי רישום)"
+        >
           <div className="flex justify-between items-start">
-            <span className="text-[#852b00] material-symbols-outlined bg-[#ffdbcf] p-2 rounded-lg text-[22px]">
+            <span className="text-[#852b00] material-symbols-outlined bg-[#ffdbcf] p-2 rounded-xl text-[22px] group-hover:scale-110 transition-transform">
               payments
             </span>
           </div>
           <div className="mt-2">
-            <p className="text-[12px] font-medium text-[#434654]">סכום ששולם</p>
-            <p className="text-[24px] sm:text-[26px] font-bold text-[#141c2b] leading-tight">₪{totalPaid.toLocaleString()}</p>
+            <p className="text-[12px] font-semibold text-[#434654]">סכום ששולם</p>
+            <p className="text-[24px] sm:text-[26px] font-black text-[#141c2b] leading-tight">
+              ₪{totalPaid.toLocaleString()}
+            </p>
           </div>
         </div>
 
         {/* 3. Progress Card */}
         <div
           onClick={onOpenTestGoalModal}
-          className="bg-white p-4 rounded-xl shadow-xs border border-[#c3c5d7]/50 flex flex-col justify-between cursor-pointer hover:border-[#1a56db] hover:shadow-md transition-all group"
+          className="bg-white p-4 rounded-2xl shadow-xs border border-[#c3c5d7]/60 flex flex-col justify-between cursor-pointer hover:border-[#1a56db] hover:shadow-md transition-all group"
+          title="לחץ לעריכת יעד השיעורים לטסט"
         >
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[#7127e5] material-symbols-outlined bg-[#eaddff] p-2 rounded-lg text-[22px] group-hover:scale-110 transition-transform">
+            <span className="text-[#7127e5] material-symbols-outlined bg-[#eaddff] p-2 rounded-xl text-[22px] group-hover:scale-110 transition-transform">
               trending_up
             </span>
             <p className="text-[13px] font-semibold text-[#141c2b]">התקדמות לטסט</p>
@@ -177,20 +217,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* 4. External Tests Count (Far left in RTL order) - Shown if tests.length > 0 */}
+        {/* 4. External Tests Count - Shown if tests.length > 0 */}
         {hasTests && (
           <div
             onClick={() => onNavigateTab('tests')}
-            className="bg-white p-4 rounded-xl shadow-xs border border-[#c3c5d7]/50 flex flex-col justify-between cursor-pointer hover:border-[#1a56db] transition-all"
+            className="bg-white p-4 rounded-2xl shadow-xs border border-[#c3c5d7]/60 flex flex-col justify-between cursor-pointer hover:border-emerald-600 transition-all active:scale-[0.98]"
           >
             <div className="flex justify-between items-start">
-              <span className="text-emerald-700 material-symbols-outlined bg-emerald-100 p-2 rounded-lg text-[22px]">
+              <span className="text-emerald-700 material-symbols-outlined bg-emerald-100 p-2 rounded-xl text-[22px]">
                 verified
               </span>
             </div>
             <div className="mt-2">
-              <p className="text-[12px] font-medium text-[#434654]">טסטים חיצוניים עד כה</p>
-              <p className="text-[26px] font-bold text-[#141c2b] leading-tight">{externalTestsCount}</p>
+              <p className="text-[12px] font-semibold text-[#434654]">טסטים חיצוניים עד כה</p>
+              <p className="text-[26px] font-black text-[#141c2b] leading-tight">{externalTestsCount}</p>
             </div>
           </div>
         )}
@@ -208,7 +248,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           nextUpcoming.type === 'lesson' ? (
             <div
               onClick={() => onSelectLesson(nextUpcoming.data)}
-              className="relative overflow-hidden bg-[#1a56db] text-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+              className="relative overflow-hidden bg-[#1a56db] text-white rounded-3xl p-5 shadow-md hover:shadow-lg transition-all cursor-pointer group"
             >
               <div className="absolute -left-6 -bottom-6 opacity-10 pointer-events-none">
                 <span className="material-symbols-outlined !text-[140px]">directions_car</span>
@@ -225,7 +265,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   </h3>
                   <div className="flex items-center gap-2 text-white/90">
                     <span className="material-symbols-outlined text-[18px]">person</span>
-                    <span className="text-[14px]">מורה נהיגה: {nextUpcoming.data.instructor || profile.instructorName}</span>
+                    <span className="text-[14px]">מורה נהיגה: {nextUpcoming.data.instructor || profile.instructorName || 'דני כהן'}</span>
                   </div>
                 </div>
 
@@ -246,7 +286,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           ) : (
             <div
               onClick={() => onNavigateTab('tests')}
-              className="relative overflow-hidden bg-gradient-to-r from-[#003fb1] to-[#1a56db] text-white rounded-2xl p-5 shadow-lg hover:shadow-xl transition-all cursor-pointer group"
+              className="relative overflow-hidden bg-gradient-to-r from-[#003fb1] to-[#1a56db] text-white rounded-3xl p-5 shadow-md hover:shadow-lg transition-all cursor-pointer group"
             >
               <div className="absolute -left-6 -bottom-6 opacity-10 pointer-events-none">
                 <span className="material-symbols-outlined !text-[140px]">verified</span>
@@ -280,12 +320,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           )
         ) : (
-          <div className="bg-white p-6 rounded-2xl border border-[#c3c5d7]/50 text-center text-[#737686] space-y-2">
+          <div className="bg-white p-6 rounded-3xl border border-[#c3c5d7]/50 text-center text-[#737686] space-y-2 shadow-xs">
             <span className="material-symbols-outlined text-[36px] text-[#1a56db]/40 block mx-auto">
-              event_busy
+              {hasPassedExternalTest ? 'celebration' : 'event_busy'}
             </span>
-            <p className="font-bold text-[16px] text-[#141c2b]">אין שיעורים בקרוב</p>
-            <p className="text-[13px] text-[#434654]">ניתן להוסיף שיעור או טסט חדש בלחיצה על כפתור הפלוס</p>
+            <p className="font-bold text-[16px] text-[#141c2b]">
+              {hasPassedExternalTest
+                ? 'סיימת את תהליך הלימודים בהצלחה!'
+                : 'אין שיעורים או טסטים מתוכננים'}
+            </p>
+            <p className="text-[13px] text-[#434654]">
+              {hasPassedExternalTest
+                ? 'ברכות על הוצאת הרישיון! כל הפרטים וההיסטוריה שמורים במערכת.'
+                : 'לחץ על כפתור הפלוס (+) כדי להוסיף שיעור, טסט או לדווח תשלום'}
+            </p>
           </div>
         )}
       </section>
@@ -314,7 +362,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <span className="material-symbols-outlined text-[16px] font-bold">chevron_left</span>
               </button>
             </div>
-          ) : (
+          ) : hasLessons ? (
             <button
               onClick={() => onNavigateTab('lessons')}
               className="bg-[#e8eeff] hover:bg-[#dbe1ff] text-[#003fb1] font-bold text-[13px] px-3.5 py-1.5 rounded-xl transition-all flex items-center gap-1 shadow-xs active:scale-95"
@@ -322,145 +370,223 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               הצג הכל
               <span className="material-symbols-outlined text-[16px] font-bold">chevron_left</span>
             </button>
-          )}
+          ) : null}
         </div>
 
-        <div className="space-y-2.5">
-          {recentActivityList.map((activityItem) => {
-            if (activityItem.itemType === 'lesson') {
-              const lesson = activityItem.data;
-              const hasPassed = isLessonPassed(lesson);
+        {recentActivityList.length === 0 ? (
+          <div className="bg-white p-5 rounded-2xl border border-[#c3c5d7]/50 text-center text-[#434654] text-[14px]">
+            לא נוספו עדיין שיעורים. הוסף שיעור ראשון כדי להתחיל לעקוב אחר תהליך הלמידה!
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {recentActivityList.map((activityItem) => {
+              if (activityItem.itemType === 'lesson') {
+                const lesson = activityItem.data;
+                const hasPassed = isLessonPassed(lesson);
 
-              return (
-                <div
-                  key={lesson.id}
-                  onClick={() => onSelectLesson(lesson)}
-                  className="bg-white p-3.5 rounded-xl border border-[#c3c5d7]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-[#1a56db] hover:shadow-xs transition-all cursor-pointer active:scale-[0.99]"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-[#e8eeff] rounded-full flex items-center justify-center text-[#003fb1] shrink-0">
-                      <span className="material-symbols-outlined text-[22px]">
-                        {lesson.topic.includes('לילה')
-                          ? 'nightlight'
-                          : lesson.topic.includes('בינעירונית')
-                          ? 'route'
-                          : 'directions_car'}
+                return (
+                  <div
+                    key={lesson.id}
+                    onClick={() => onSelectLesson(lesson)}
+                    className="bg-white p-3.5 rounded-2xl border border-[#c3c5d7]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-[#1a56db] hover:shadow-xs transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-[#e8eeff] rounded-xl flex items-center justify-center text-[#003fb1] shrink-0">
+                        <span className="material-symbols-outlined text-[22px]">
+                          {lesson.topic.includes('לילה')
+                            ? 'nightlight'
+                            : lesson.topic.includes('בינעירונית')
+                            ? 'route'
+                            : 'directions_car'}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-bold text-[15px] text-[#141c2b]">{lesson.topic}</p>
+                        <p className="text-[12px] text-[#434654]">{lesson.formattedDate}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-[#c3c5d7]/30">
+                      {hasPassed ? (
+                        <div
+                          onClick={(e) => e.stopPropagation()}
+                          className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-xl"
+                        >
+                          <span className="text-[12px] font-bold text-amber-800 ml-1">התקיים?</span>
+                          <button
+                            onClick={() => onQuickUpdateLessonStatus?.(lesson.id, 'completed', 'paid')}
+                            className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center hover:bg-emerald-700 active:scale-90"
+                            title="התקיים ושולם"
+                          >
+                            <span className="material-symbols-outlined text-[18px] font-bold">check</span>
+                          </button>
+                          <button
+                            onClick={() => onQuickUpdateLessonStatus?.(lesson.id, 'completed', 'pending')}
+                            className="w-8 h-8 bg-amber-600 text-white rounded-full flex items-center justify-center hover:bg-amber-700 active:scale-90"
+                            title="התקיים וממתין לתשלום"
+                          >
+                            <span className="material-symbols-outlined text-[16px]">payments</span>
+                          </button>
+                          <button
+                            onClick={() => onQuickUpdateLessonStatus?.(lesson.id, 'cancelled', 'pending')}
+                            className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 active:scale-90"
+                            title="בוטל"
+                          >
+                            <span className="material-symbols-outlined text-[18px] font-bold">close</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                            lesson.status === 'cancelled'
+                              ? 'bg-red-100 text-red-800'
+                              : lesson.paymentStatus === 'paid'
+                              ? 'bg-green-100 text-green-800'
+                              : lesson.status === 'planned'
+                              ? 'bg-[#1a56db] text-white'
+                              : 'bg-amber-100 text-amber-800'
+                          }`}
+                        >
+                          {lesson.status === 'cancelled'
+                            ? 'בוטל'
+                            : lesson.status === 'planned'
+                            ? 'עתידי'
+                            : lesson.paymentStatus === 'paid'
+                            ? 'שולם'
+                            : 'ממתין לתשלום'}
+                        </span>
+                      )}
+
+                      <span className="material-symbols-outlined text-[#737686] text-[18px]">
+                        chevron_left
                       </span>
                     </div>
-                    <div>
-                      <p className="font-bold text-[15px] text-[#141c2b]">{lesson.topic}</p>
-                      <p className="text-[12px] text-[#434654]">{lesson.formattedDate}</p>
-                    </div>
                   </div>
+                );
+              } else {
+                // Test Activity Card
+                const test = activityItem.data;
+                const isPassed = test.result === 'passed';
+                const isFailed = test.result === 'failed';
 
-                  <div className="flex items-center justify-between sm:justify-end gap-3 pt-2 sm:pt-0 border-t sm:border-0 border-[#c3c5d7]/30">
-                    {hasPassed ? (
-                      <div
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1 rounded-xl"
-                      >
-                        <span className="text-[12px] font-bold text-amber-800 ml-1">התקיים?</span>
-                        <button
-                          onClick={() => onQuickUpdateLessonStatus?.(lesson.id, 'completed', 'paid')}
-                          className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center hover:bg-emerald-700 active:scale-90"
-                          title="התקיים ושולם"
-                        >
-                          <span className="material-symbols-outlined text-[18px] font-bold">check</span>
-                        </button>
-                        <button
-                          onClick={() => onQuickUpdateLessonStatus?.(lesson.id, 'completed', 'pending')}
-                          className="w-8 h-8 bg-amber-600 text-white rounded-full flex items-center justify-center hover:bg-amber-700 active:scale-90"
-                          title="התקיים וממתין לתשלום"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">payments</span>
-                        </button>
-                        <button
-                          onClick={() => onQuickUpdateLessonStatus?.(lesson.id, 'cancelled', 'pending')}
-                          className="w-8 h-8 bg-red-600 text-white rounded-full flex items-center justify-center hover:bg-red-700 active:scale-90"
-                          title="בוטל"
-                        >
-                          <span className="material-symbols-outlined text-[18px] font-bold">close</span>
-                        </button>
+                return (
+                  <div
+                    key={test.id}
+                    onClick={() => onNavigateTab('tests')}
+                    className="bg-[#f0f4ff] p-3.5 rounded-2xl border border-[#1a56db]/30 flex items-center justify-between gap-2 hover:border-[#1a56db] transition-all cursor-pointer active:scale-[0.99]"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 bg-emerald-100 text-emerald-800 rounded-xl flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[22px]">verified</span>
                       </div>
-                    ) : (
+                      <div>
+                        <p className="font-bold text-[15px] text-[#141c2b]">
+                          טסט {test.type}
+                        </p>
+                        <p className="text-[12px] text-[#434654]">{test.formattedDate} ({test.time})</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
                       <span
                         className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                          lesson.status === 'cancelled'
-                            ? 'bg-red-100 text-red-800'
-                            : lesson.paymentStatus === 'paid'
-                            ? 'bg-green-100 text-green-800'
-                            : lesson.status === 'planned'
-                            ? 'bg-[#1a56db] text-white'
-                            : 'bg-amber-100 text-amber-800'
+                          isPassed
+                            ? 'bg-emerald-600 text-white'
+                            : isFailed
+                            ? 'bg-red-600 text-white'
+                            : 'bg-amber-500 text-white'
                         }`}
                       >
-                        {lesson.status === 'cancelled'
-                          ? 'בוטל'
-                          : lesson.status === 'planned'
-                          ? 'עתידי'
-                          : lesson.paymentStatus === 'paid'
-                          ? 'שולם'
-                          : 'ממתין לתשלום'}
+                        {isPassed ? 'עברתי! 🎉' : isFailed ? 'נכשלתי' : 'לא ידוע'}
                       </span>
-                    )}
-
-                    <span className="material-symbols-outlined text-[#737686] text-[18px]">
-                      chevron_left
-                    </span>
+                      <span className="material-symbols-outlined text-[#737686] text-[18px]">
+                        chevron_left
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            } else {
-              // Test Activity Card
-              const test = activityItem.data;
-              const isPassed = test.result === 'passed';
-              const isFailed = test.result === 'failed';
+                );
+              }
+            })}
+          </div>
+        )}
+      </section>
 
-              return (
-                <div
-                  key={test.id}
-                  onClick={() => onNavigateTab('tests')}
-                  className="bg-[#f0f4ff] p-3.5 rounded-xl border border-[#1a56db]/30 flex items-center justify-between gap-2 hover:border-[#1a56db] transition-all cursor-pointer active:scale-[0.99]"
+      {/* ======================================================== */}
+      {/* Dedicated Registration Fee Section at the Bottom */}
+      {/* ======================================================== */}
+      <section className="space-y-3 pt-2">
+        <h2 className="text-[17px] font-bold text-[#141c2b]">דמי רישום</h2>
+
+        {/* Clean white card integrated seamlessly into design */}
+        <div
+          onClick={handleRegistrationCardClick}
+          className="bg-white rounded-3xl p-5 border border-[#c3c5d7]/60 shadow-xs hover:border-amber-500 hover:shadow-md transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+          title={isRegPaid ? 'לחץ לצפייה בפרטי תשלום דמי הרישום' : 'לחץ לדיווח תשלום דמי הרישום'}
+        >
+          <div className="flex items-center gap-3.5">
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                isRegPaid
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-amber-100 text-amber-900'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[26px]">
+                {isRegPaid ? 'verified' : 'payments'}
+              </span>
+            </div>
+
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-[16px] font-bold text-[#141c2b]">
+                  {isRegPaid ? 'דמי רישום שולמו בהצלחה' : 'דמי רישום לבית הספר לנהיגה'}
+                </h3>
+                <span
+                  className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap shrink-0 text-center inline-flex items-center justify-center ${
+                    isRegPaid
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-900'
+                  }`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 bg-emerald-100 text-emerald-800 rounded-full flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-[22px]">verified</span>
-                    </div>
-                    <div>
-                      <p className="font-bold text-[15px] text-[#141c2b]">
-                        טסט {test.type}
-                      </p>
-                      <p className="text-[12px] text-[#434654]">{test.formattedDate} ({test.time})</p>
-                    </div>
-                  </div>
+                  {isRegPaid ? 'שולם' : 'לא שולם'}
+                </span>
+              </div>
 
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                        isPassed
-                          ? 'bg-emerald-600 text-white'
-                          : isFailed
-                          ? 'bg-red-600 text-white'
-                          : 'bg-amber-500 text-white'
-                      }`}
-                    >
-                      {isPassed ? 'עברתי! 🎉' : isFailed ? 'נכשלתי' : 'לא ידוע'}
-                    </span>
-                    <span className="material-symbols-outlined text-[#737686] text-[18px]">
-                      chevron_left
-                    </span>
-                  </div>
-                </div>
-              );
-            }
-          })}
+              <p className="text-[13px] text-[#434654] mt-0.5">
+                {isRegPaid
+                  ? `שולם בתאריך: ${profile.registrationFeePayment?.formattedDate || profile.registrationFeePayment?.date || ''} (סכום: ₪${regFeePaidSum.toLocaleString()})`
+                  : `טרם שולמו דמי הרישום לביה"ס לנהיגה (מחיר ברירת מחדל: ₪${profile.defaultRegistrationFee ?? 0})`}
+              </p>
+            </div>
+          </div>
+
+          {/* Explicit Badge / Button indicating what clicking does ("פרטים" or "דיווח תשלום") */}
+          <div className="flex items-center justify-end">
+            {isRegPaid ? (
+              <button
+                type="button"
+                className="bg-[#e8eeff] hover:bg-[#dbe1ff] text-[#003fb1] font-bold text-[13px] px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs"
+              >
+                <span>פרטים</span>
+                <span className="material-symbols-outlined text-[16px]">chevron_left</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-[13px] px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs"
+              >
+                <span className="material-symbols-outlined text-[16px]">add</span>
+                <span>דיווח תשלום</span>
+              </button>
+            )}
+          </div>
         </div>
       </section>
 
       {/* Location Modal */}
       {showLocationModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative border border-[#c3c5d7]">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative border border-[#c3c5d7]">
             <button
               onClick={() => setShowLocationModal(false)}
               className="absolute top-4 left-4 p-1 rounded-full text-[#737686] hover:bg-[#e8eeff] transition-colors"
@@ -484,7 +610,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   const loc = nextUpcoming?.type === 'lesson' ? nextUpcoming.data.location : 'תל אביב';
                   window.open(`https://maps.google.com/?q=${encodeURIComponent(loc)}`, '_blank');
                 }}
-                className="flex-1 bg-[#1a56db] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#003fb1] transition-colors"
+                className="flex-1 bg-[#1a56db] text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#003fb1] transition-colors shadow-xs"
               >
                 <span className="material-symbols-outlined text-[20px]">near_me</span>
                 פתח ב-Waze / Google Maps
@@ -494,11 +620,29 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
+      {/* Paid Summary Modal */}
+      <PaidSummaryModal
+        isOpen={showPaidSummaryModal}
+        onClose={() => setShowPaidSummaryModal(false)}
+        lessons={lessons}
+        tests={tests}
+        profile={profile}
+      />
+
+      {/* Registration Fee Modal */}
+      <RegistrationFeeModal
+        isOpen={showRegistrationFeeModal}
+        onClose={() => setShowRegistrationFeeModal(false)}
+        profile={profile}
+        onSaveRegistrationFee={onSaveRegistrationFee}
+        onDeleteRegistrationFee={onDeleteRegistrationFee}
+      />
+
       {/* Floating Quick Add Button */}
       <button
         onClick={onQuickAdd}
         className="fixed bottom-20 left-4 w-14 h-14 bg-[#1a56db] text-white rounded-full shadow-xl flex items-center justify-center active:scale-90 transition-all z-40 group hover:bg-[#003fb1]"
-        title="הוסף שיעור חדש"
+        title="הוספת שיעור, טסט או דיווח תשלום"
       >
         <span className="material-symbols-outlined text-[32px] transition-transform group-hover:rotate-90">
           add

@@ -30,10 +30,10 @@ export const AddTestView: React.FC<AddTestViewProps> = ({
   const [notes, setNotes] = useState<string>('');
 
   // Default fee prices requested by user
-  const [testFee, setTestFee] = useState<number>(165);
-  const [carFee, setCarFee] = useState<number>(231);
+  const [testFee, setTestFee] = useState<number>(profile?.defaultTestFee ?? 0);
+  const [carFee, setCarFee] = useState<number>(profile?.defaultCarFee ?? 0);
   const [includeRegistrationFee, setIncludeRegistrationFee] = useState<boolean>(!hasExistingExternalTest);
-  const [registrationFee, setRegistrationFee] = useState<number>(200);
+  const [registrationFee, setRegistrationFee] = useState<number>(profile?.defaultRegistrationFee ?? 0);
 
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('pending');
   const [result, setResult] = useState<TestResultStatus>('planned');
@@ -42,12 +42,12 @@ export const AddTestView: React.FC<AddTestViewProps> = ({
   const handleTypeChange = (newType: TestType) => {
     setType(newType);
     if (newType === 'פנימי') {
-      setTestFee(250);
+      setTestFee(profile?.defaultInternalTestFee ?? 0);
       setCarFee(0);
       setIncludeRegistrationFee(false);
     } else {
-      setTestFee(165);
-      setCarFee(231);
+      setTestFee(profile?.defaultTestFee ?? 0);
+      setCarFee(profile?.defaultCarFee ?? 0);
       setIncludeRegistrationFee(!hasExistingExternalTest);
     }
   };

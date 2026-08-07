@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Lesson, StudentProfile } from '../types';
+import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
 import { isLessonPassed } from '../utils/lessonHelpers';
 import { ShekelIcon } from './ShekelIcon';
 
 interface LessonsListViewProps {
   lessons: Lesson[];
-  profile: StudentProfile;
+  profile?: StudentProfile;
+  hasPassedTest?: boolean;
   onSelectLesson: (lesson: Lesson) => void;
   onAddNewLesson: () => void;
   onOpenTestGoalModal: () => void;
@@ -16,8 +18,9 @@ interface LessonsListViewProps {
 type FilterType = 'all' | 'completed' | 'unpaid' | 'planned';
 
 export const LessonsListView: React.FC<LessonsListViewProps> = ({
-  lessons,
-  profile,
+  lessons = [],
+  profile = DEFAULT_STUDENT_PROFILE,
+  hasPassedTest = false,
   onSelectLesson,
   onAddNewLesson,
   onOpenTestGoalModal,
@@ -30,8 +33,8 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showDeleteConfirmModal, setShowDeleteConfirmModal] = useState(false);
 
-  const completedCount = lessons.filter((l) => l.status === 'completed').length;
-  const requiredCount = profile.requiredLessons;
+  const completedCount = (lessons || []).filter((l) => l.status === 'completed').length;
+  const requiredCount = profile?.requiredLessons || 28;
   const remainingCount = Math.max(0, requiredCount - completedCount);
   const progressPercent = Math.min(100, Math.round((completedCount / requiredCount) * 100));
 
@@ -77,19 +80,19 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
   return (
     <main className="px-4 pt-4 pb-28 max-w-2xl mx-auto space-y-5">
       {/* Page Title & Header Buttons */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-[17px] font-bold text-[#141c2b] tracking-tight">רשימת שיעורים</h2>
-          <p className="text-[14px] text-[#434654]">מעקב אחר התקדמות הנהיגה שלך</p>
+          <h2 className="text-[18px] font-bold text-[#141c2b] tracking-tight">רשימת שיעורים</h2>
+          <p className="text-[14px] text-[#434654]">מעקב אחר התקדמות לימודי הנהיגה שלך</p>
         </div>
 
-        {/* Buttons container (In RTL: Leftmost = Trash button, Rightmost = Completed count badge) */}
-        <div className="flex items-stretch gap-2">
-          {/* Red Trash Button Square (משמאל למלבן שיעורים שבוצעו) */}
+        {/* Buttons container (In RTL: Leftmost = Trash button, Middle = New Lesson button, Rightmost = Completed count badge) */}
+        <div className="flex items-stretch flex-wrap sm:flex-nowrap gap-2">
+          {/* Red Trash Button Square (משמאל) */}
           <button
             onClick={handleTrashButtonClick}
             disabled={isSelectMode}
-            className={`self-stretch w-[48px] rounded-xl font-bold transition-all flex items-center justify-center shadow-xs p-0 shrink-0 ${
+            className={`self-stretch w-[46px] min-h-[44px] rounded-xl font-bold transition-all flex items-center justify-center shadow-xs p-0 shrink-0 ${
               isSelectMode
                 ? 'bg-gray-200 border border-gray-300 text-gray-400 cursor-not-allowed shadow-none opacity-50'
                 : 'bg-[#ba1a1a] hover:bg-red-700 text-white active:scale-95'
@@ -99,14 +102,35 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
             <span className="material-symbols-outlined text-[22px]">delete</span>
           </button>
 
-          {/* Lessons completed badge button */}
+          {/* New Lesson Button (בין הפח למונה) with matching height */}
+          {hasPassedTest ? (
+            <button
+              disabled={true}
+              className="self-stretch bg-gray-200 border border-gray-300/60 text-gray-400 px-3.5 py-1.5 min-h-[44px] rounded-xl font-bold text-[13px] shadow-none flex items-center gap-1.5 cursor-not-allowed shrink-0 opacity-70"
+              title="לא ניתן להוסיף שיעורים לאחר מעבר טסט"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span>שיעור חדש</span>
+            </button>
+          ) : (
+            <button
+              onClick={onAddNewLesson}
+              className="self-stretch bg-[#1a56db] hover:bg-[#003fb1] text-white px-3.5 py-1.5 min-h-[44px] rounded-xl font-bold text-[13px] shadow-xs transition-all flex items-center gap-1.5 active:scale-95 shrink-0"
+              title="הוספת שיעור נהיגה חדש"
+            >
+              <span className="material-symbols-outlined text-[18px]">add</span>
+              <span>שיעור חדש</span>
+            </button>
+          )}
+
+          {/* Lessons completed badge button (מימין) */}
           <button
             onClick={onOpenTestGoalModal}
-            className="bg-[#1a56db] text-white px-3.5 py-2 rounded-xl text-center shadow-xs hover:bg-[#003fb1] transition-colors flex flex-col justify-center"
+            className="self-stretch bg-[#1a56db] text-white px-3.5 py-1.5 min-h-[44px] rounded-xl text-center shadow-xs hover:bg-[#003fb1] transition-colors flex flex-col justify-center shrink-0"
             title="לחץ לעריכת יעד השיעורים לטסט"
           >
-            <span className="block text-[11px] opacity-80 font-medium">שיעורים שבוצעו</span>
-            <span className="font-bold text-[18px] leading-tight">
+            <span className="block text-[10px] opacity-80 font-medium leading-none">שיעורים שבוצעו</span>
+            <span className="font-bold text-[17px] leading-tight">
               {completedCount}/{requiredCount}
             </span>
           </button>
@@ -212,8 +236,31 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
 
       {/* Lessons List */}
       <div className="flex flex-col gap-3">
-        {filteredLessons.length === 0 ? (
-          <div className="bg-white rounded-2xl p-8 text-center space-y-3 border border-[#c3c5d7]/50 my-4">
+        {lessons.length === 0 ? (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#c3c5d7]/50 text-center space-y-2 shadow-xs my-2">
+            <span className="material-symbols-outlined text-[36px] text-[#1a56db]/40 block mx-auto">
+              event_busy
+            </span>
+            <p className="font-bold text-[17px] text-[#141c2b]">אין שיעורים קודמים או מתוכננים</p>
+            <p className="text-[13px] text-[#434654]">
+              {hasPassedTest
+                ? 'לא ניתן להוסיף שיעורים לאחר מעבר טסט'
+                : 'לחץ על כפתור "שיעור חדש" כדי להוסיף שיעורים'}
+            </p>
+            {!hasPassedTest && (
+              <div className="pt-2">
+                <button
+                  onClick={onAddNewLesson}
+                  className="bg-[#1a56db] hover:bg-[#003fb1] text-white px-4 py-2 rounded-xl font-bold text-[13px] shadow-xs inline-flex items-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-[18px]">add</span>
+                  <span>שיעור חדש</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : filteredLessons.length === 0 ? (
+          <div className="bg-white rounded-2xl p-8 text-center space-y-3 border border-[#c3c5d7]/50 my-4 shadow-xs">
             <span className="material-symbols-outlined text-[48px] text-[#737686]">find_in_page</span>
             <p className="text-[16px] font-bold text-[#141c2b]">לא נמצאו שיעורים להתאמה זו</p>
             <p className="text-[14px] text-[#434654]">נסה לשנות את הסינון או לחפש מילה אחרת.</p>
@@ -222,7 +269,7 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
                 setFilter('all');
                 setSearchQuery('');
               }}
-              className="text-[#003fb1] font-semibold text-[14px] hover:underline"
+              className="text-[#003fb1] font-semibold text-[14px] hover:underline cursor-pointer"
             >
               אפס סינון
             </button>
