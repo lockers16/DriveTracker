@@ -55,8 +55,18 @@ export default function App() {
     saveStoredProfile(profile);
   }, [profile]);
 
-  // If user hasn't completed initial onboarding, show Onboarding form
-  if (!profile.isConfigured) {
+  // If user has existing lessons or tests or isConfigured is true, they bypass onboarding
+  const isExistingUser = profile.isConfigured || lessons.length > 0 || tests.length > 0;
+
+  // Auto-mark profile as configured if user already has lessons or tests
+  useEffect(() => {
+    if (!profile.isConfigured && (lessons.length > 0 || tests.length > 0)) {
+      setProfile((prev) => ({ ...prev, isConfigured: true }));
+    }
+  }, [lessons.length, tests.length, profile.isConfigured]);
+
+  // If user hasn't completed initial onboarding AND has no existing data, show Onboarding form
+  if (!isExistingUser) {
     return (
       <OnboardingView
         initialProfile={profile}

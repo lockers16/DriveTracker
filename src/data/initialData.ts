@@ -83,10 +83,55 @@ export function saveStoredLessons(lessons: Lesson[]) {
 export function getStoredProfile(): StudentProfile {
   try {
     const data = localStorage.getItem(STORAGE_KEY_PROFILE);
-    if (data) return JSON.parse(data);
+    if (data) {
+      const parsed = JSON.parse(data);
+      let hasExistingLessons = false;
+      let hasExistingTests = false;
+      try {
+        const lData = localStorage.getItem(STORAGE_KEY_LESSONS);
+        if (lData && JSON.parse(lData).length > 0) hasExistingLessons = true;
+        const tData = localStorage.getItem(STORAGE_KEY_TESTS);
+        if (tData && JSON.parse(tData).length > 0) hasExistingTests = true;
+      } catch (_) {}
+
+      const hasLegacyData = Boolean(
+        parsed.name ||
+        parsed.instructorName ||
+        parsed.carModel ||
+        parsed.pricePerLesson ||
+        parsed.defaultRegistrationFee ||
+        parsed.defaultTestFee ||
+        hasExistingLessons ||
+        hasExistingTests
+      );
+
+      return {
+        ...DEFAULT_STUDENT_PROFILE,
+        ...parsed,
+        isConfigured:
+          parsed.isConfigured !== undefined
+            ? parsed.isConfigured
+            : (hasLegacyData ? true : false),
+      };
+    }
   } catch (e) {
     console.error("Error reading profile from localStorage", e);
   }
+
+  // If no profile object was saved in localStorage, but lessons or tests exist in localStorage:
+  try {
+    const lData = localStorage.getItem(STORAGE_KEY_LESSONS);
+    const tData = localStorage.getItem(STORAGE_KEY_TESTS);
+    const hasLessons = lData && JSON.parse(lData).length > 0;
+    const hasTests = tData && JSON.parse(tData).length > 0;
+    if (hasLessons || hasTests) {
+      return {
+        ...DEFAULT_STUDENT_PROFILE,
+        isConfigured: true,
+      };
+    }
+  } catch (_) {}
+
   return DEFAULT_STUDENT_PROFILE;
 }
 
