@@ -285,7 +285,7 @@ export default function App() {
 
   const completedLessonsCount = calculateCompletedLessonUnits(lessons);
   const isRegistrationPaid = Boolean(profile.registrationFeePayment?.isPaid);
-  const hasPassedTest = tests.some((t) => t.result === 'passed');
+  const hasPassedTest = tests.some((t) => t.type === 'חיצוני' && t.result === 'passed');
 
   return (
     <div className="min-h-screen bg-[#f9f9ff] text-[#141c2b] flex flex-col font-sans">

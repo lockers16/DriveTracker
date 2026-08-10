@@ -425,7 +425,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                             className="w-8 h-8 bg-amber-600 text-white rounded-full flex items-center justify-center hover:bg-amber-700 active:scale-90"
                             title="התקיים וממתין לתשלום"
                           >
-                            <span className="material-symbols-outlined text-[16px]">payments</span>
+                            <span className="material-symbols-outlined text-[18px] font-bold">check</span>
                           </button>
                           <button
                             onClick={() => onQuickUpdateLessonStatus?.(lesson.id, 'cancelled', 'pending')}

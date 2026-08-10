@@ -422,7 +422,7 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
                         <span className="material-symbols-outlined text-[20px] font-bold">check</span>
                       </button>
 
-                      {/* Banknotes Button: Completed & Pending Payment */}
+                      {/* Check Button: Completed & Pending Payment */}
                       <button
                         onClick={() =>
                           onQuickUpdateLessonStatus?.(lesson.id, 'completed', 'pending')
@@ -430,7 +430,7 @@ export const LessonsListView: React.FC<LessonsListViewProps> = ({
                         className="w-9 h-9 bg-amber-600 text-white rounded-full flex items-center justify-center hover:bg-amber-700 shadow-xs active:scale-90 transition-transform"
                         title="התקיים וממתין לתשלום"
                       >
-                        <span className="material-symbols-outlined text-[18px]">payments</span>
+                        <span className="material-symbols-outlined text-[20px] font-bold">check</span>
                       </button>
 
                       {/* X Button: Cancelled (Leftmost) */}
