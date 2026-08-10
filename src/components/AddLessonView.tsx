@@ -28,7 +28,7 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
   const [price, setPrice] = useState(profile?.pricePerLesson ?? 0);
   const [topic, setTopic] = useState(() => getNextSuggestedLessonTopic(allLessons, 40));
   const [location, setLocation] = useState('תל אביב, מרכז');
-  const [status, setStatus] = useState<'planned' | 'completed'>('planned');
+  const [status, setStatus] = useState<'planned' | 'completed' | 'cancelled'>('planned');
   const [isPaid, setIsPaid] = useState(false);
   const [notes, setNotes] = useState('');
 
@@ -127,7 +127,7 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
         location,
         price: Number(price),
         status,
-        paymentStatus: isPaid ? 'paid' : 'pending',
+        paymentStatus: status === 'cancelled' ? 'pending' : (isPaid ? 'paid' : 'pending'),
         notes,
       };
 
@@ -294,36 +294,69 @@ export const AddLessonView: React.FC<AddLessonViewProps> = ({
                 <div
                   className={`flex items-center justify-center py-3 border rounded-xl transition-all font-semibold text-[14px] ${
                     status === 'completed'
-                      ? 'bg-[#1a56db] text-white border-[#1a56db] shadow-xs'
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                       : 'bg-white text-[#434654] border-[#c3c5d7] hover:bg-[#f1f3ff]'
                   }`}
                 >
                   בוצע
                 </div>
               </label>
+
+              <label className="flex-1 cursor-pointer">
+                <input
+                  type="radio"
+                  name="lesson_status"
+                  value="cancelled"
+                  checked={status === 'cancelled'}
+                  onChange={() => {
+                    setStatus('cancelled');
+                    setIsPaid(false);
+                  }}
+                  className="sr-only"
+                />
+                <div
+                  className={`flex items-center justify-center py-3 border rounded-xl transition-all font-semibold text-[14px] ${
+                    status === 'cancelled'
+                      ? 'bg-[#ba1a1a] text-white border-[#ba1a1a] shadow-xs'
+                      : 'bg-white text-[#434654] border-[#c3c5d7] hover:bg-red-50 hover:text-[#ba1a1a]'
+                  }`}
+                >
+                  בוטל
+                </div>
+              </label>
             </div>
           </div>
 
           {/* Payment Checkbox */}
-          <div className="flex items-center justify-between bg-[#f1f3ff] p-4 rounded-xl border border-[#c3c5d7]/50">
+          <div
+            className={`flex items-center justify-between p-4 rounded-xl border ${
+              status === 'cancelled'
+                ? 'bg-gray-100 border-gray-300 opacity-80 cursor-not-allowed'
+                : 'bg-[#f1f3ff] border-[#c3c5d7]/50'
+            }`}
+          >
             <div className="flex flex-col">
               <span className="font-semibold text-[14px] text-[#141c2b]">
                 סטטוס תשלום
               </span>
               <span className="text-[12px] text-[#434654]">
-                האם השיעור שולם במלואו?
+                {status === 'cancelled' ? 'לא ניתן לשלם (השיעור בוטל)' : 'האם השיעור שולם במלואו?'}
               </span>
             </div>
 
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isPaid}
-                onChange={(e) => setIsPaid(e.target.checked)}
-                className="sr-only peer"
-              />
-              <div className="w-11 h-6 bg-[#c3c5d7] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1a56db]"></div>
-            </label>
+            {status === 'cancelled' ? (
+              <span className="text-[12px] font-bold text-gray-400">חסום</span>
+            ) : (
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isPaid}
+                  onChange={(e) => setIsPaid(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-[#c3c5d7] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1a56db]"></div>
+              </label>
+            )}
           </div>
 
           {/* Optional Notes */}

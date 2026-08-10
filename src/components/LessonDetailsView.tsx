@@ -77,6 +77,7 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
   };
 
   const handleTogglePayment = () => {
+    if (lesson.status === 'cancelled') return;
     const newPaymentStatus = lesson.paymentStatus === 'paid' ? 'pending' : 'paid';
     onUpdateLesson({
       ...lesson,
@@ -87,6 +88,7 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
   const handleSaveFullEdit = (e: React.FormEvent) => {
     e.preventDefault();
     const fullTimeStr = `${editStartTime} - ${editEndTime}`;
+    const finalPayment = editStatus === 'cancelled' ? 'pending' : editPayment;
 
     onUpdateLesson({
       ...lesson,
@@ -96,7 +98,7 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
       location: editLocation,
       price: Number(editPrice),
       status: editStatus,
-      paymentStatus: editPayment,
+      paymentStatus: finalPayment,
     });
     setShowEditModal(false);
   };
@@ -294,10 +296,19 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
 
           {/* Action Buttons */}
           <div className="grid grid-cols-1 gap-3">
-            {isPaid ? (
+            {lesson.status === 'cancelled' ? (
+              <button
+                disabled
+                className="w-full flex items-center justify-center gap-2 bg-gray-100 border border-gray-300 text-gray-400 py-3.5 rounded-xl font-bold text-[15px] cursor-not-allowed opacity-80 shadow-none"
+                title="לא ניתן לשלם (השיעור בוטל)"
+              >
+                <span className="material-symbols-outlined text-[20px] text-gray-400">block</span>
+                לא ניתן לשלם (השיעור בוטל)
+              </button>
+            ) : isPaid ? (
               <button
                 onClick={handleTogglePayment}
-                className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white py-3.5 rounded-xl font-bold text-[16px] transition-colors shadow-xs active:scale-95"
+                className="w-full flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white py-3.5 rounded-xl font-bold text-[16px] transition-colors shadow-xs active:scale-95 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">undo</span>
                 בטל סימון תשלום
@@ -305,7 +316,7 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
             ) : (
               <button
                 onClick={handleTogglePayment}
-                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-[16px] transition-colors shadow-xs active:scale-95"
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-[16px] transition-colors shadow-xs active:scale-95 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[20px]">payments</span>
                 סמן כשולם
@@ -314,7 +325,7 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
 
             <button
               onClick={() => setShowEditModal(true)}
-              className="w-full flex items-center justify-center gap-2 bg-[#003fb1] text-white py-3.5 rounded-xl font-bold text-[16px] hover:bg-[#002d80] transition-colors shadow-xs active:scale-95"
+              className="w-full flex items-center justify-center gap-2 bg-[#003fb1] text-white py-3.5 rounded-xl font-bold text-[16px] hover:bg-[#002d80] transition-colors shadow-xs active:scale-95 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[20px]">edit</span>
               עריכת פרטי שיעור
@@ -322,7 +333,7 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
 
             <button
               onClick={() => setShowDeleteModal(true)}
-              className="w-full flex items-center justify-center gap-2 bg-[#ba1a1a] hover:bg-red-700 text-white py-3.5 rounded-xl font-bold text-[16px] transition-colors shadow-xs active:scale-95"
+              className="w-full flex items-center justify-center gap-2 bg-[#ba1a1a] hover:bg-red-700 text-white py-3.5 rounded-xl font-bold text-[16px] transition-colors shadow-xs active:scale-95 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[20px]">delete</span>
               מחיקת שיעור
@@ -435,12 +446,23 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
                     סטטוס תשלום
                   </label>
                   <select
-                    value={editPayment}
+                    value={editStatus === 'cancelled' ? 'pending' : editPayment}
+                    disabled={editStatus === 'cancelled'}
                     onChange={(e) => setEditPayment(e.target.value as any)}
-                    className="w-full p-3 border border-[#c3c5d7] rounded-xl text-[14px] bg-white"
+                    className={`w-full p-3 border rounded-xl text-[14px] ${
+                      editStatus === 'cancelled'
+                        ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed opacity-80'
+                        : 'border-[#c3c5d7] bg-white cursor-pointer'
+                    }`}
                   >
-                    <option value="paid">שולם</option>
-                    <option value="pending">ממתין לתשלום</option>
+                    {editStatus === 'cancelled' ? (
+                      <option value="pending">לא ניתן לשלם (השיעור בוטל)</option>
+                    ) : (
+                      <>
+                        <option value="paid">שולם</option>
+                        <option value="pending">ממתין לתשלום</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
@@ -451,8 +473,14 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
                 </label>
                 <select
                   value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as any)}
-                  className="w-full p-3 border border-[#c3c5d7] rounded-xl text-[14px] bg-white"
+                  onChange={(e) => {
+                    const newStatus = e.target.value as any;
+                    setEditStatus(newStatus);
+                    if (newStatus === 'cancelled') {
+                      setEditPayment('pending');
+                    }
+                  }}
+                  className="w-full p-3 border border-[#c3c5d7] rounded-xl text-[14px] bg-white cursor-pointer"
                 >
                   <option value="completed">בוצע</option>
                   <option value="planned">עתידי</option>

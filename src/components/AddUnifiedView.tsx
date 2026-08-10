@@ -69,7 +69,7 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
   const [lessonPrice, setLessonPrice] = useState(profile?.pricePerLesson ?? 0);
   const [lessonTopic, setLessonTopic] = useState(suggestedTopic);
   const [lessonLocation, setLessonLocation] = useState('');
-  const [lessonStatus, setLessonStatus] = useState<'planned' | 'completed'>('planned');
+  const [lessonStatus, setLessonStatus] = useState<'planned' | 'completed' | 'cancelled'>('planned');
   const [lessonIsPaid, setLessonIsPaid] = useState(false);
   const [lessonNotes, setLessonNotes] = useState('');
 
@@ -143,7 +143,7 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
       location: lessonLocation.trim(),
       price: Number(lessonPrice),
       status: lessonStatus,
-      paymentStatus: lessonIsPaid ? 'paid' : 'pending',
+      paymentStatus: lessonStatus === 'cancelled' ? 'pending' : (lessonIsPaid ? 'paid' : 'pending'),
       notes: lessonNotes.trim() || undefined,
     };
 
@@ -628,7 +628,7 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
             </div>
 
             {/* Status & Payment */}
-            <div className="grid grid-cols-2 gap-3 pt-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div>
                 <label className="block text-[12px] font-semibold text-[#434654] mb-1 text-right">
                   סטטוס קיום השיעור
@@ -637,10 +637,10 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setLessonStatus('planned')}
-                    className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
+                    className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all cursor-pointer ${
                       lessonStatus === 'planned'
                         ? 'bg-[#1a56db] text-white shadow-xs'
-                        : 'text-[#434654]'
+                        : 'text-[#434654] hover:text-[#141c2b]'
                     }`}
                   >
                     מתוכנן
@@ -648,13 +648,27 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setLessonStatus('completed')}
-                    className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
+                    className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all cursor-pointer ${
                       lessonStatus === 'completed'
                         ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-[#434654]'
+                        : 'text-[#434654] hover:text-[#141c2b]'
                     }`}
                   >
                     התקיים
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLessonStatus('cancelled');
+                      setLessonIsPaid(false);
+                    }}
+                    className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all cursor-pointer ${
+                      lessonStatus === 'cancelled'
+                        ? 'bg-[#ba1a1a] text-white shadow-xs'
+                        : 'text-[#434654] hover:text-[#ba1a1a]'
+                    }`}
+                  >
+                    בוטל
                   </button>
                 </div>
               </div>
@@ -663,30 +677,39 @@ export const AddUnifiedView: React.FC<AddUnifiedViewProps> = ({
                 <label className="block text-[12px] font-semibold text-[#434654] mb-1 text-right">
                   סטטוס תשלום
                 </label>
-                <div className="flex rounded-xl bg-[#f0f4ff] p-1 border border-[#c3c5d7]/50">
-                  <button
-                    type="button"
-                    onClick={() => setLessonIsPaid(false)}
-                    className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
-                      !lessonIsPaid
-                        ? 'bg-amber-500 text-white shadow-xs'
-                        : 'text-[#434654]'
-                    }`}
+                {lessonStatus === 'cancelled' ? (
+                  <div
+                    className="flex items-center justify-center h-[34px] px-2 rounded-xl bg-gray-100 border border-gray-300 text-gray-400 text-[12px] font-bold cursor-not-allowed opacity-80"
+                    title="לא ניתן לשלם (השיעור בוטל)"
                   >
-                    טרם שולם
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLessonIsPaid(true)}
-                    className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all ${
-                      lessonIsPaid
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-[#434654]'
-                    }`}
-                  >
-                    שולם
-                  </button>
-                </div>
+                    לא ניתן לשלם (השיעור בוטל)
+                  </div>
+                ) : (
+                  <div className="flex rounded-xl bg-[#f0f4ff] p-1 border border-[#c3c5d7]/50">
+                    <button
+                      type="button"
+                      onClick={() => setLessonIsPaid(false)}
+                      className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all cursor-pointer ${
+                        !lessonIsPaid
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'text-[#434654]'
+                      }`}
+                    >
+                      טרם שולם
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLessonIsPaid(true)}
+                      className={`flex-1 py-1.5 text-[12px] font-bold rounded-lg transition-all cursor-pointer ${
+                        lessonIsPaid
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'text-[#434654]'
+                      }`}
+                    >
+                      שולם
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

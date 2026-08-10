@@ -188,10 +188,14 @@ export default function App() {
 
   // Update lesson handler
   const handleUpdateLesson = (updatedLesson: Lesson) => {
-    const updated = lessons.map((l) => (l.id === updatedLesson.id ? updatedLesson : l));
+    const safeLesson: Lesson =
+      updatedLesson.status === 'cancelled'
+        ? { ...updatedLesson, paymentStatus: 'pending' }
+        : updatedLesson;
+    const updated = lessons.map((l) => (l.id === safeLesson.id ? safeLesson : l));
     setLessons(updated);
-    if (selectedLesson && selectedLesson.id === updatedLesson.id) {
-      setSelectedLesson(updatedLesson);
+    if (selectedLesson && selectedLesson.id === safeLesson.id) {
+      setSelectedLesson(safeLesson);
     }
   };
 
@@ -201,12 +205,13 @@ export default function App() {
     status: 'completed' | 'cancelled',
     paymentStatus: 'paid' | 'pending'
   ) => {
+    const effectivePayment = status === 'cancelled' ? 'pending' : paymentStatus;
     const updated = lessons.map((l) =>
       l.id === lessonId
         ? {
             ...l,
             status,
-            paymentStatus,
+            paymentStatus: effectivePayment,
           }
         : l
     );
