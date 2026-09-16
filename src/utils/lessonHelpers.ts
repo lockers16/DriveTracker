@@ -71,6 +71,112 @@ export function calculateDurationFromTimes(startTime: string, endTime: string): 
 }
 
 /**
+ * Extract HH:MM from time string (e.g. "14:30 - 15:15" -> "14:30") formatted with leading zeros.
+ */
+export function parseTimeStart(timeStr?: string): string {
+  if (!timeStr) return '00:00';
+  const start = timeStr.split('-')[0].trim();
+  const [h, m] = start.split(':').map(Number);
+  if (isNaN(h)) return '00:00';
+  const hh = h.toString().padStart(2, '0');
+  const mm = (isNaN(m) ? 0 : m).toString().padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+/**
+ * Compare two lessons chronologically (earliest date & time first).
+ */
+export function compareLessonsChronological(a: Lesson, b: Lesson): number {
+  const dateComp = (a.date || '').localeCompare(b.date || '');
+  if (dateComp !== 0) return dateComp;
+  const timeA = parseTimeStart(a.time);
+  const timeB = parseTimeStart(b.time);
+  const timeComp = timeA.localeCompare(timeB);
+  if (timeComp !== 0) return timeComp;
+  return (a.id || '').localeCompare(b.id || '');
+}
+
+/**
+ * Updates a lesson topic string with a new lesson number/range,
+ * while preserving any custom suffix/description (e.g. "שיעור 16 - חניה" -> "שיעור 15 - חניה").
+ * If the user set a custom topic without "שיעור <number>", it leaves it untouched.
+ */
+export function updateTopicWithNewNumber(
+  currentTopic: string,
+  startNum: number,
+  endNum: number,
+  units: number
+): string {
+  if (!currentTopic || !currentTopic.trim()) {
+    return units >= 2 ? `שיעור ${startNum}-${endNum}` : `שיעור ${startNum}`;
+  }
+
+  const trimmed = currentTopic.trim();
+  // Match prefix "שיעור" followed by digits and optional range "-digits"
+  const match = trimmed.match(/^שיעור\s+(\d+)(?:\s*-\s*\d+)?(.*)$/);
+
+  if (!match) {
+    // Custom topic (e.g. "חניה במקביל", "מגרש הדרכה") without lesson number prefix
+    return currentTopic;
+  }
+
+  const remainder = match[2] || '';
+  const prefix = units >= 2 ? `שיעור ${startNum}-${endNum}` : `שיעור ${startNum}`;
+  return `${prefix}${remainder}`;
+}
+
+/**
+ * Recalculates lesson numbering across all lessons:
+ * - Sorts lessons chronologically (earliest to latest).
+ * - Only active (non-cancelled) lessons receive active lesson numbers and count towards units.
+ * - Handles double lessons (duration >= 70) as 2 units, advancing numbering appropriately.
+ * - If a lesson before them is cancelled (single or double), subsequent lessons automatically drop their numbers.
+ * - If a lesson is uncancelled or changed, numbering re-adjusts automatically.
+ * - Preserves the array order of the original lessons list.
+ */
+export function recalculateLessonNumbers(lessons: Lesson[]): Lesson[] {
+  if (!lessons || lessons.length === 0) return [];
+
+  const sorted = [...lessons].sort(compareLessonsChronological);
+  const updates = new Map<string, { lessonNumber: number; topic: string }>();
+
+  let currentUnit = 1;
+
+  for (const lesson of sorted) {
+    if (lesson.status === 'cancelled') {
+      // Cancelled lessons do NOT consume active units or advance currentUnit.
+      // Subsequent active lessons will take this place in numbering.
+      continue;
+    }
+
+    const units = getLessonUnits(lesson);
+    const startNum = currentUnit;
+    const endNum = startNum + units - 1;
+
+    const newTopic = updateTopicWithNewNumber(lesson.topic, startNum, endNum, units);
+
+    updates.set(lesson.id, {
+      lessonNumber: startNum,
+      topic: newTopic,
+    });
+
+    currentUnit += units;
+  }
+
+  return lessons.map((lesson) => {
+    const update = updates.get(lesson.id);
+    if (update) {
+      return {
+        ...lesson,
+        lessonNumber: update.lessonNumber,
+        topic: update.topic,
+      };
+    }
+    return lesson;
+  });
+}
+
+/**
  * Returns how many standard lesson units (40 min each) a lesson represents.
  * 40 min = 1 unit, 80 min (or double lesson) = 2 units.
  */

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Lesson, StudentProfile } from '../types';
 import { DEFAULT_STUDENT_PROFILE } from '../data/initialData';
 import { calculateEndTime, calculateDurationFromTimes } from '../utils/lessonHelpers';
@@ -43,6 +43,32 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
   const requiredCount = profile?.requiredLessons || 28;
   const progressPercent = Math.min(100, Math.round((completedCount / requiredCount) * 100));
 
+  // Sync state when lesson prop updates (e.g. recalculated numbers or status changes)
+  useEffect(() => {
+    const parts = (lesson.time || '').split('-');
+    const start = parts[0] ? parts[0].trim() : '16:30';
+    const end = parts[1] ? parts[1].trim() : calculateEndTime(start, lesson.duration || 45);
+    setEditTopic(lesson.topic || '');
+    setEditStartTime(start);
+    setEditDuration(lesson.duration || 45);
+    setEditEndTime(end);
+    setEditLocation(lesson.location || '');
+    setEditPrice(lesson.price || 150);
+    setEditStatus(lesson.status || 'planned');
+    setEditPayment(lesson.paymentStatus || 'pending');
+    setEditedNotes(lesson.notes || '');
+  }, [
+    lesson.id,
+    lesson.topic,
+    lesson.time,
+    lesson.duration,
+    lesson.location,
+    lesson.price,
+    lesson.status,
+    lesson.paymentStatus,
+    lesson.notes,
+  ]);
+
   // Time Sync Handlers
   const handleStartTimeChange = (newStart: string) => {
     setEditStartTime(newStart);
@@ -55,6 +81,17 @@ export const LessonDetailsView: React.FC<LessonDetailsViewProps> = ({
     const basePrice = profile?.pricePerLesson ?? 0;
     if (basePrice > 0) {
       setEditPrice(newDuration >= 70 ? basePrice * 2 : basePrice);
+    }
+    // If topic has default "שיעור X" or "שיעור X-Y" format, adapt it
+    const match = editTopic.match(/^שיעור\s+(\d+)(?:\s*-\s*\d+)?(.*)$/);
+    if (match) {
+      const num = Number(match[1]);
+      const remainder = match[2] || '';
+      if (newDuration >= 70) {
+        setEditTopic(`שיעור ${num}-${num + 1}${remainder}`);
+      } else {
+        setEditTopic(`שיעור ${num}${remainder}`);
+      }
     }
   };
 

@@ -20,7 +20,7 @@ import {
 } from './data/initialData';
 
 import { Header } from './components/Header';
-import { calculateCompletedLessonUnits } from './utils/lessonHelpers';
+import { calculateCompletedLessonUnits, recalculateLessonNumbers } from './utils/lessonHelpers';
 import { BottomNavBar } from './components/BottomNavBar';
 import { DashboardView } from './components/DashboardView';
 import { LessonsListView } from './components/LessonsListView';
@@ -34,7 +34,7 @@ import { OnboardingView } from './components/OnboardingView';
 
 export default function App() {
   const [profile, setProfile] = useState<StudentProfile>(() => getStoredProfile());
-  const [lessons, setLessons] = useState<Lesson[]>(() => getStoredLessons());
+  const [lessons, setLessons] = useState<Lesson[]>(() => recalculateLessonNumbers(getStoredLessons()));
   const [tests, setTests] = useState<DrivingTest[]>(() => getStoredTests());
 
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
@@ -101,8 +101,10 @@ export default function App() {
     };
 
     const updated = [newLesson, ...lessons];
-    setLessons(updated);
-    setSelectedLesson(newLesson);
+    const recalculated = recalculateLessonNumbers(updated);
+    setLessons(recalculated);
+    const refreshed = recalculated.find((l) => l.id === newId) || newLesson;
+    setSelectedLesson(refreshed);
     setActiveTab('lessons');
   };
 
@@ -193,9 +195,11 @@ export default function App() {
         ? { ...updatedLesson, paymentStatus: 'pending' }
         : updatedLesson;
     const updated = lessons.map((l) => (l.id === safeLesson.id ? safeLesson : l));
-    setLessons(updated);
+    const recalculated = recalculateLessonNumbers(updated);
+    setLessons(recalculated);
     if (selectedLesson && selectedLesson.id === safeLesson.id) {
-      setSelectedLesson(safeLesson);
+      const refreshed = recalculated.find((l) => l.id === safeLesson.id) || safeLesson;
+      setSelectedLesson(refreshed);
     }
   };
 
@@ -215,20 +219,25 @@ export default function App() {
           }
         : l
     );
-    setLessons(updated);
+    const recalculated = recalculateLessonNumbers(updated);
+    setLessons(recalculated);
+    if (selectedLesson && selectedLesson.id === lessonId) {
+      const refreshed = recalculated.find((l) => l.id === lessonId);
+      if (refreshed) setSelectedLesson(refreshed);
+    }
   };
 
   // Delete single lesson handler
   const handleDeleteLesson = (lessonId: string) => {
     const updated = lessons.filter((l) => l.id !== lessonId);
-    setLessons(updated);
+    setLessons(recalculateLessonNumbers(updated));
     setSelectedLesson(null);
   };
 
   // Delete multiple lessons handler
   const handleDeleteMultipleLessons = (lessonIds: string[]) => {
     const updated = lessons.filter((l) => !lessonIds.includes(l.id));
-    setLessons(updated);
+    setLessons(recalculateLessonNumbers(updated));
     if (selectedLesson && lessonIds.includes(selectedLesson.id)) {
       setSelectedLesson(null);
     }
@@ -245,7 +254,7 @@ export default function App() {
 
   // Import full data from JSON backup
   const handleImportFullData = (importedLessons: Lesson[], importedProfile?: StudentProfile) => {
-    setLessons(importedLessons);
+    setLessons(recalculateLessonNumbers(importedLessons));
     if (importedProfile) {
       setProfile({
         ...importedProfile,
